@@ -20,19 +20,32 @@ tabs = st.tabs(["Real-time Telemetry", "Security Logs", "Device Map", "Device Ma
 # --- TAB 1: TELEMETRY ---
 with tabs[0]:
     df = load_data("telemetry")
-    safe_df = df[df['status'] == 'An toan']
+    safe_df = df[df['status'] == 'An toan'].copy()
     
     col1, col2, col3 = st.columns(3)
     if not safe_df.empty:
+        # Ep kieu du lieu sang dang so de tranh loi Plotly
+        numeric_cols = ['heart_rate', 'temperature', 'humidity', 'pressure', 'spo2', 'latency']
+        for col in numeric_cols:
+            if col in safe_df.columns:
+                safe_df[col] = pd.to_numeric(safe_df[col], errors='coerce')
+
         latest = safe_df.iloc[0]
-        col1.metric("Latest Heart Rate (BPM)", f"{latest['heart_rate']} bpm")
-        col2.metric("Latest Temperature", f"{latest['temperature']} C")
-        col3.metric("Latest Pressure", f"{latest['pressure']} hPa")
+        col1.metric("Latest Heart Rate", f"{latest['heart_rate'] or 0} bpm")
+        col2.metric("Latest Temp", f"{latest['temperature'] or 0} C")
+        col3.metric("Latest Pressure", f"{latest['pressure'] or 0} hPa")
         
         st.write("### Dien bien chi so sinh trac hoc & Moi truong")
-        fig = px.line(safe_df.head(50), x='timestamp', y=['heart_rate', 'temperature', 'humidity', 'spo2'], 
-                      title="Data History (Safe Packets Only)")
-        st.plotly_chart(fig, use_container_width=True)
+        # Chi ve bieu do neu co du lieu hop le
+        fig_cols = [c for c in ['heart_rate', 'temperature', 'humidity', 'spo2'] if c in safe_df.columns and not safe_df[c].isnull().all()]
+        if fig_cols:
+            fig = px.line(safe_df.head(50), x='timestamp', y=fig_cols, 
+                          title="Data History (Safe Packets Only)")
+            st.plotly_chart(fig, key="sensor_line_chart", width='stretch')
+        else:
+            st.info("Dang cho du lieu cam bien hop le...")
+    else:
+        st.info("Chua co du lieu an toan.")
 
 # --- TAB 2: SECURITY ---
 with tabs[1]:

@@ -60,8 +60,16 @@ void loop() {
         t = 25.0 + (random(0, 50)/10.0); h = 60.0; p = 1013.25;
     }
 
-    // 1. Tao Payload JSON
-    String json = "{\"id\":\"" + String(DEVICE_ID) + "\",\"temp\":" + String(t) + ",\"bpm\":" + String(bpm) + ",\"lat\":" + String(lat,6) + ",\"seq\":" + String(seq++) + "}";
+    // 1. Tao Payload JSON day du cac truong
+    String json = "{\"id\":\"" + String(DEVICE_ID) + "\"" +
+                  ",\"temp\":" + String(t) + 
+                  ",\"humi\":" + String(h) + 
+                  ",\"press\":" + String(p) + 
+                  ",\"bpm\":" + String(bpm) + 
+                  ",\"spo2\":" + String(spo2) + 
+                  ",\"lat\":" + String(lat,6) + 
+                  ",\"lon\":" + String(lon,6) + 
+                  ",\"seq\":" + String(seq++) + "}";
     
     // 2. Ma hoa AES-128-GCM
     uint8_t iv[12], tag[16], ciphertext[json.length()];
