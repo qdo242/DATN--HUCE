@@ -58,7 +58,7 @@ Tài liệu này dùng để theo dõi tiến độ thực hiện đồ án. Cá
 ## GIAI ĐOẠN 4: TÍCH HỢP PHẦN CỨNG VÀ HOÀN THIỆN (Tuần 13 - 16)
 
 ### Tuần 13 - 14: Firmware C++ và Tối ưu hóa ESP32
-- [ ] Viết mã nguồn C++ mẫu cho ESP32 sử dụng thư viện mật mã chuyên dụng.
+- [x] Viết mã nguồn C++ mẫu cho ESP32 sử dụng thư viện mbedtls (Chạy trên Wokwi).
 - [ ] Tận dụng bộ tăng tốc phần cứng AES trên chip ESP32 để tối ưu tốc độ.
 - [ ] Triển khai kịch bản truyền thông thực tế giữa 2 thiết bị ESP32 qua Gateway.
 

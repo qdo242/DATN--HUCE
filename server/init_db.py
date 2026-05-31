@@ -4,19 +4,13 @@ import os
 DB_NAME = 'iot_security.db'
 
 def init_db():
-    # Xoa file DB cu de dam bao cau truc moi nhat (Cach triet de nhat cho dev)
     if os.path.exists(DB_NAME):
-        try:
-            os.remove(DB_NAME)
-            print(f"Da xoa file {DB_NAME} cu de cap nhat cau truc moi.")
-        except Exception as e:
-            print(f"Khong the xoa file DB: {e}. Hay dam bao ban da tat tat ca terminal dang chay app.py")
-            return
+        os.remove(DB_NAME)
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # 1. Bang quan ly thiet bi
+    # Bang quan ly thiet bi
     cursor.execute('''
     CREATE TABLE devices (
         device_id TEXT PRIMARY KEY,
@@ -24,11 +18,13 @@ def init_db():
         gateway_key TEXT NOT NULL,
         last_seq INTEGER DEFAULT -1,
         status TEXT DEFAULT 'active',
+        latitude REAL,
+        longitude REAL,
         description TEXT
     )
     ''')
     
-    # 2. Bang luu tru telemetry
+    # Bang du lieu Telemetry (Them nhieu truong cho cac loai cam bien khac nhau)
     cursor.execute('''
     CREATE TABLE telemetry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,6 +32,11 @@ def init_db():
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         temperature REAL,
         humidity REAL,
+        pressure REAL,
+        heart_rate REAL,
+        spo2 REAL,
+        latitude REAL,
+        longitude REAL,
         latency REAL,
         status TEXT,
         error_msg TEXT,
@@ -43,7 +44,7 @@ def init_db():
     )
     ''')
     
-    # 3. Bang nhat ky tan cong
+    # Bang nhat ky tan cong
     cursor.execute('''
     CREATE TABLE attack_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,13 +56,18 @@ def init_db():
     )
     ''')
     
-    # Them thiet bi mau
-    cursor.execute("INSERT INTO devices (device_id, node_key, gateway_key, description) VALUES (?, ?, ?, ?)", 
-                   ('ESP32_NODE_X', '1234567890123456', 'gateway_secret_k', 'Thiet bi tai phong Lab'))
+    # KHOI TAO 3 THIET BI (Khoa phai dung dung 16 ky tu)
+    devices_data = [
+        ('NODE_X_HEALTH', 'key_x_1234567890', 'gw_secret_000001', -1, 'active', 21.0045, 105.8433, 'Thiet bi deo theo doi suc khoe'),
+        ('NODE_Y_ENV',    'key_y_0987654321', 'gw_secret_000001', -1, 'active', 21.0065, 105.8453, 'Tram quan trac moi truong'),
+        ('GATEWAY_01',    'none',             'gw_secret_000001', -1, 'active', 21.0055, 105.8443, 'Tram trung chuyen du lieu')
+    ]
+    
+    cursor.executemany("INSERT INTO devices VALUES (?,?,?,?,?,?,?,?)", devices_data)
     
     conn.commit()
     conn.close()
-    print(f"Khoi tao Database {DB_NAME} phien ban moi thanh cong.")
+    print(f"Khoi tao he thong 3 thiet bi vao Database {DB_NAME} thanh cong.")
 
 if __name__ == "__main__":
     init_db()
