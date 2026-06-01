@@ -1,4 +1,4 @@
 [wokwi]
 version = 1
-firmware = 'node_01.ino'
+firmware = 'sketch.ino'
 diagram = 'diagram.json'

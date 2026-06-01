@@ -3,19 +3,19 @@
   "author": "Do Anh Quan",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-v1", "id": "esp32", "top": 0, "left": 0, "attrs": {} },
-    { "type": "wokwi-oled-128x64", "id": "oled", "top": -250, "left": 0, "attrs": {} },
-    { "type": "wokwi-max30102", "id": "max", "top": 200, "left": -150, "attrs": {} }
+    { "type": "board-esp32-devkit-v1", "id": "esp_x", "top": -150, "left": -250, "attrs": {} },
+    { "type": "board-esp32-devkit-v1", "id": "esp_y", "top": -150, "left": 250, "attrs": {} },
+    { "type": "board-esp32-devkit-v1", "id": "esp_gw", "top": 200, "left": 0, "attrs": {} },
+    { "type": "wokwi-oled-128x64", "id": "oled", "top": -300, "left": -250, "attrs": {} }
   ],
   "connections": [
-    [ "esp32:GND.1", "oled:GND", "black", [ "v0" ] ],
-    [ "esp32:3V3", "oled:VCC", "red", [ "v0" ] ],
-    [ "esp32:SDA", "oled:SDA", "green", [ "v0" ] ],
-    [ "esp32:SCL", "oled:SCL", "blue", [ "v0" ] ],
-    [ "esp32:GND.1", "max:GND", "black", [ "v0" ] ],
-    [ "esp32:3V3", "max:VIN", "red", [ "v0" ] ],
-    [ "esp32:SDA", "max:SDA", "green", [ "v0" ] ],
-    [ "esp32:SCL", "max:SCL", "blue", [ "v0" ] ]
+    [ "esp_x:GND.1", "oled:GND", "black", [ "v0" ] ],
+    [ "esp_x:3V3", "oled:VCC", "red", [ "v0" ] ],
+    [ "esp_x:SDA", "oled:SDA", "green", [ "v0" ] ],
+    [ "esp_x:SCL", "oled:SCL", "blue", [ "v0" ] ],
+    
+    [ "esp_x:GND.2", "esp_x:4", "black", [ "h0" ] ],
+    [ "esp_y:GND.2", "esp_y:5", "black", [ "h0" ] ]
   ],
   "dependencies": {}
 }
