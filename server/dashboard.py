@@ -21,9 +21,14 @@ with tabs[0]:
     if not df.empty:
         col1, col2, col3 = st.columns(3)
         latest = df.iloc[0]
-        col1.metric("Khí CO2 (ppm)", f"{latest.get('heart_rate', 0)*10:.0f}") # Giả lập CO2
-        col2.metric("Nhiệt độ (C)", f"{latest['temperature']:.1f}")
-        col3.metric("Độ ẩm (%)", f"{latest['humidity']:.1f}")
+        
+        co2_val = (latest.get('heart_rate') or 0) * 10
+        temp_val = latest.get('temperature') or 0.0
+        humi_val = latest.get('humidity') or 0.0
+        
+        col1.metric("Khí CO2 (ppm)", f"{co2_val:.0f}") # Giả lập CO2
+        col2.metric("Nhiệt độ (C)", f"{temp_val:.1f}")
+        col3.metric("Độ ẩm (%)", f"{humi_val:.1f}")
         
         st.line_chart(df[['temperature', 'humidity']])
     else:
