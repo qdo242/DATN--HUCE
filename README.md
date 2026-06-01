@@ -1,31 +1,25 @@
-# Nghiên cứu và Triển khai Mã hóa Payload cho Hệ thống IoT
+# Đề tài: Xây dựng giải pháp truyền tin bảo mật giữa các thiết bị IoT
 
-## 1. Giới thiệu (Bối cảnh nghiên cứu)
-Đồ án tập trung nghiên cứu giải pháp **Mã hóa tầng ứng dụng (Application Layer Encryption)** cho các thiết bị IoT tài nguyên hạn chế (ESP32). Dự án đi sâu vào việc thiết kế và triển khai một giao thức bảo mật nhẹ, tối ưu cho Payload dữ liệu, đảm bảo an toàn từ đầu cuối (End-to-End).
+## 1. Mô tả ngữ cảnh bài toán
+Hệ thống bao gồm các thiết bị IoT $X_i$ triển khai cố định và thiết bị di động $Y$ (Gateway).
 
-**Trọng tâm nghiên cứu:**
-- Nghiên cứu thuật toán mã hóa đối xứng **AES-GCM** và ưu điểm của nó trong việc xác thực dữ liệu (AEAD).
-- Thiết kế cơ chế xác thực nguồn gốc và chống giả mạo sử dụng **HMAC-SHA256**.
-- Thiết kế giao thức chống tấn công phát lại (Replay Attack) và đảm bảo tính toàn vẹn (Integrity).
-- Nghiên cứu cơ chế quản lý và trao đổi khóa an toàn cho thiết bị đầu cuối.
+**Quy trình hoạt động:**
+- **Giai đoạn 1 (Beacon/ACK):** Các $X_i$ phát tín hiệu Beacon qua LoRa. Khi $Y$ đến gần và nhận được Beacon, $Y$ sẽ gửi lại tín hiệu ACK.
+- **Giai đoạn 2 (Truyền tin bảo mật):** Sau khi nhận ACK, $X_i$ thu thập dữ liệu (Nhiệt độ, độ ẩm, CO, CO2, NH3) và tọa độ GPS, mã hóa dữ liệu và gửi về $Y$.
+- **Giai đoạn 3 (Chuyển tiếp & Hiển thị):** $Y$ chuyển tiếp dữ liệu bảo mật về Server. Server giải mã, lưu trữ và hiển thị vị trí các thiết bị lên Web Map (OpenStreetMap + Leaflet).
 
-## 2. Phân chia trách nhiệm
-- **Phần Nghiên cứu & Phần mềm (Bạn phụ trách):**
-    - Thiết kế giao thức bảo mật (Cấu trúc gói tin, quy trình mã hóa/giải mã).
-    - Triển khai Backend Server để xử lý các phép tính mật mã phức tạp.
-    - Phân tích hiệu năng và độ an toàn của thuật toán.
-- **Phần IoT & Hardware (Cộng sự phụ trách):**
-    - Triển khai các thư viện mật mã lên phần cứng ESP32 theo thiết kế giao thức.
-    - Thu thập dữ liệu cảm biến và thực thi mã hóa phần cứng.
+## 2. Phân công nhiệm vụ
+- **Nội dung công việc 1 (Tạ Huy Hoàng):**
+    - Lắp ráp phần cứng (ESP32, LoRa SX1278, GPS, cảm biến).
+    - Thiết kế và lập trình quy trình Beacon/ACK.
+    - Chuyển tiếp dữ liệu từ Gateway về Server.
+- **Nội dung công việc 2 (Đỗ Anh Quân):**
+    - Nghiên cứu giải pháp mã hóa dữ liệu (XOR và AES-128-CBC). Lựa chọn AES-CBC kết hợp tăng tốc phần cứng ESP32.
+    - Thiết kế kiến trúc hệ thống và cấu trúc gói tin $X_i \rightarrow Y \rightarrow$ Server.
+    - Xây dựng Flask Server, Database và Web Map hiển thị.
 
-## 3. Giao thức bảo mật đề xuất
-Hệ thống sử dụng **AES-128-GCM** kết hợp **HMAC-SHA256**:
-- **AES-GCM:** Mã hóa và xác thực dữ liệu giữa Node và Server.
-- **HMAC-SHA256:** Xác thực quyền truy cập của Gateway.
-- **Nonce/IV:** 12 bytes (Đảm bảo tính duy nhất cho mỗi bản tin).
-- **Auth Tag:** 16 bytes (Xác thực dữ liệu và tiêu đề).
-
-## 4. Công nghệ sử dụng
-- **Ngôn ngữ:** Python (Phía Server) để thực hiện các phân tích mật mã.
-- **Thư viện:** `PyCryptodome` (Python), `mbedtls` (C++ cho ESP32).
-- **Mô phỏng:** Công cụ mô phỏng để kiểm tra giao thức trước khi nạp lên phần cứng.
+## 3. Công nghệ sử dụng
+- **Phần cứng:** ESP32, LoRa SX1278, GPS NEO-6M, BME280, cảm biến khí.
+- **Mật mã:** AES-128-CBC (Pre-Shared Key toàn mạng).
+- **Backend:** Flask, SQLite.
+- **Frontend:** Streamlit, Leaflet.js, OpenStreetMap.

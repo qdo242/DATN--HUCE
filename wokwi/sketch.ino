@@ -5,111 +5,168 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include "MAX30105.h"
 #include <mbedtls/aes.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/md.h>
 
-// --- LUA CHON CHE DO THIET BI ---
-#define MODE_NODE_X_HEALTH 1
-#define MODE_NODE_Y_ENV    2
+// --- CAU HINH CHE DO ---
+#define MODE_XI 1
+#define MODE_Y  2
+#define CURRENT_MODE MODE_XI // SUA THANH 1 de chay Xi, SUA THANH 2 de chay Y
 
-// CHON CHE DO TAI DAY
-#define DEVICE_MODE MODE_NODE_X_HEALTH 
+const char* NODE_ID = "Xi_01";
+const char* serverUrl = "http://192.168.1.169:5000/receive-data"; // Sua thanh IP cua ban
 
-// --- CAU HINH HE THONG ---
-const char* serverUrl = "http://192.168.1.214:5000/receive-data"; // THAY IP MAY TINH
-const char* GATEWAY_ID = "GW01";
-const char* GATEWAY_KEY = "gw_secret_000001";
-
-#if DEVICE_MODE == MODE_NODE_X_HEALTH
-  const char* DEVICE_ID = "NODE_X_HEALTH";
-  const char* NODE_KEY = "key_x_1234567890";
-#else
-  const char* DEVICE_ID = "NODE_Y_ENV";
-  const char* NODE_KEY = "key_y_0987654321";
-#endif
+// KHOA DUNG CHUNG TOAN MANG (16 byte cho AES-128)
+const uint8_t NETWORK_KEY[16] = {
+    0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+    0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C
+};
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 Adafruit_BME280 bme;
-MAX30105 heartSensor;
-int seq = 1;
+bool is_handshake_done = false;
+
+// Toa do ban dau (Dai hoc Xay dung - HUCE) - CO DINH, khong random vo ly
+float lat = 21.00355; 
+float lon = 105.84255;
 
 void setup() {
     Serial.begin(115200);
     Wire.begin();
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    display.setTextColor(WHITE);
+    display.clearDisplay();
     
-    if(DEVICE_MODE == MODE_NODE_X_HEALTH) heartSensor.begin();
-    else bme.begin(0x76);
+    if (CURRENT_MODE == MODE_XI) {
+        bme.begin(0x76);
+        Serial.println("\n[Xi] He thong san sang. Bat dau phat Beacon (LoRa)...");
+        display.println("Xi: READY");
+    } else {
+        Serial.println("\n[Y] Gateway san sang. Dang quet Beacon (LoRa)...");
+        display.println("Y: READY");
+    }
+    display.display();
 
     WiFi.begin("Wokwi-GUEST", "");
-    while (WiFi.status() != WL_CONNECTED) delay(500);
-    Serial.println("WiFi Connected!");
+    while (WiFi.status() != WL_CONNECTED) { delay(500); }
+    Serial.println("WiFi Connected (De gui len Server)!");
 }
 
-void loop() {
-    float t=0, h=0, p=0, lat=21.0045, lon=105.8433;
-    int bpm=0, spo2=0;
+// ----------------------------------------------------
+// PHAN CUA HOANG: GIAO THUC HANDSHAKE (BEACON / ACK)
+// ----------------------------------------------------
+void do_handshake() {
+    if (CURRENT_MODE == MODE_XI) {
+        Serial.println("\n--- GIAI DOAN 1: HANDSHAKE ---");
+        Serial.println("[Xi] LoRa TX: <BEACON_XI_01>");
+        display.clearDisplay(); display.setCursor(0,0);
+        display.println("Xi: SENDING BEACON"); display.display();
+        
+        delay(3000); 
+        
+        Serial.println("[Xi] LoRa RX: <ACK_OK_FROM_Y>");
+        Serial.println("[Xi] => Handshake thanh cong! Chuyen sang che do truyen tin bao mat.");
+        is_handshake_done = true;
+    } 
+    else if (CURRENT_MODE == MODE_Y) {
+        Serial.println("\n--- GIAI DOAN 1: HANDSHAKE ---");
+        Serial.println("[Y] LoRa RX: <BEACON_XI_01>");
+        delay(1000);
+        
+        Serial.println("[Y] LoRa TX: <ACK_OK_FROM_Y>");
+        display.clearDisplay(); display.setCursor(0,0);
+        display.println("Y: SENT ACK"); display.display();
+        
+        is_handshake_done = true;
+        delay(5000);
+    }
+}
 
-    // Doc du lieu theo loai thiet bi
-    if(DEVICE_MODE == MODE_NODE_X_HEALTH) {
-        bpm = random(70, 90); spo2 = random(95, 99);
-        lat += (random(-10, 10) / 1000.0);
-    } else {
-        t = 25.0 + (random(0, 50)/10.0); h = 60.0; p = 1013.25;
+// Ham ma hoa AES-128-CBC
+size_t aes_encrypt(uint8_t* plaintext, size_t length, uint8_t* ciphertext, uint8_t* iv) {        
+    mbedtls_aes_context aes_ctx;
+    mbedtls_aes_init(&aes_ctx);
+    
+    // 1. Thiet lap khoa
+    mbedtls_aes_setkey_enc(&aes_ctx, NETWORK_KEY, 128); 
+    
+    // 2. Tao IV ngau nhien
+    for(int i = 0; i < 16; i++) {
+        iv[i] = random(0, 255);
+    }
+    
+    // 3. Ma hoa (Chieu dai phai chia het cho 16)
+    size_t padded_len = length;
+    if (padded_len % 16 != 0) {
+        padded_len = ((padded_len / 16) + 1) * 16;
+    }
+    
+    // Pad voi ky tu NULL
+    uint8_t padded_pt[padded_len] = {0};
+    memcpy(padded_pt, plaintext, length);
+
+    mbedtls_aes_crypt_cbc(&aes_ctx, MBEDTLS_AES_ENCRYPT, padded_len, iv, padded_pt, ciphertext);
+    mbedtls_aes_free(&aes_ctx);
+    
+    return padded_len;
+}
+
+// ----------------------------------------------------
+// PHAN CUA QUAN: MA HOA VA CHUYEN TIEP DATA
+// ----------------------------------------------------
+void encrypt_and_send_to_server() {
+    // Do cam bien (Nhiet do, Do am, CO2)
+    float t = 28.5 + (random(-5, 5) / 10.0);
+    float h = 60.0;
+    float co2 = random(400, 450);
+
+    // Tao Payload JSON don gian
+    String json = "{\"id\":\"" + String(NODE_ID) + "\",\"t\":" + String(t, 1) + ",\"h\":" + String(h, 1) + ",\"co2\":" + String(co2, 0) + ",\"lat\":" + String(lat, 5) + ",\"lon\":" + String(lon, 5) + "}";
+    
+    Serial.println("\n--- GIAI DOAN 2: DATA TRANSMISSION ---");
+    Serial.println("[Xi] Du lieu tho: " + json);
+
+    // Ma hoa AES-128-CBC
+    uint8_t iv[16];
+    // Chieu dai du phong 128 byte
+    uint8_t ciphertext[128] = {0}; 
+    
+    size_t enc_len = aes_encrypt((uint8_t*)json.c_str(), json.length(), ciphertext, iv);
+
+    // Dong goi de gui: [16 byte IV] + [Ciphertext]
+    uint8_t packet_to_send[16 + enc_len];
+    memcpy(packet_to_send, iv, 16);
+    memcpy(packet_to_send + 16, ciphertext, enc_len);
+
+    // Chuyen sang Hex va gui
+    String hex = ""; char b[3];
+    for(size_t i=0; i < 16 + enc_len; i++) { 
+        sprintf(b, "%02x", packet_to_send[i]); 
+        hex += b; 
     }
 
-    // 1. Tao Payload JSON day du cac truong
-    String json = "{\"id\":\"" + String(DEVICE_ID) + "\"" +
-                  ",\"temp\":" + String(t) + 
-                  ",\"humi\":" + String(h) + 
-                  ",\"press\":" + String(p) + 
-                  ",\"bpm\":" + String(bpm) + 
-                  ",\"spo2\":" + String(spo2) + 
-                  ",\"lat\":" + String(lat,6) + 
-                  ",\"lon\":" + String(lon,6) + 
-                  ",\"seq\":" + String(seq++) + "}";
-    
-    // 2. Ma hoa AES-128-GCM
-    uint8_t iv[12], tag[16], ciphertext[json.length()];
-    for(int i=0; i<12; i++) iv[i] = random(0, 255);
-    
-    mbedtls_gcm_context gcm;
-    mbedtls_gcm_init(&gcm);
-    mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, (const uint8_t*)NODE_KEY, 128);
-    mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, json.length(), iv, 12, NULL, 0, (const uint8_t*)json.c_str(), ciphertext, 16, tag);
-    mbedtls_gcm_free(&gcm);
-
-    // 3. Gateway Layer (HMAC)
-    size_t p_len = 4 + 12 + json.length() + 16;
-    uint8_t packet[p_len];
-    memcpy(packet, "GW01", 4); memcpy(packet+4, iv, 12);
-    memcpy(packet+16, ciphertext, json.length()); memcpy(packet+16+json.length(), tag, 16);
-
-    uint8_t hmac[32];
-    mbedtls_md_context_t md_ctx;
-    mbedtls_md_init(&md_ctx);
-    mbedtls_md_setup(&md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
-    mbedtls_md_hmac_starts(&md_ctx, (const unsigned char *)GATEWAY_KEY, strlen(GATEWAY_KEY));
-    mbedtls_md_hmac_update(&md_ctx, packet, p_len);
-    mbedtls_md_hmac_finish(&md_ctx, hmac);
-    mbedtls_md_free(&md_ctx);
-
-    // 4. Send Hex
-    String hex = "";
-    char b[3];
-    for(int i=0; i<p_len; i++) { sprintf(b, "%02x", packet[i]); hex += b; }
-    for(int i=0; i<32; i++) { sprintf(b, "%02x", hmac[i]); hex += b; }
-
+    Serial.println("[Y] Chuyen tiep Data bao mat ve Server...");
     HTTPClient http;
     http.begin(serverUrl);
     http.addHeader("Content-Type", "application/json");
     int res = http.POST("{\"payload\":\"" + hex + "\"}");
     
-    display.clearDisplay(); display.setCursor(0,0); display.setTextColor(WHITE);
-    display.printf("ID: %s\nRes: %d\nSECURE ACTIVE", DEVICE_ID, res);
+    display.clearDisplay(); display.setCursor(0,0);
+    display.printf("Xi -> Y -> Server\nRes: %d\nCO2: %.0f\nLat: %.5f", res, co2, lat);
     display.display();
     
-    delay(15000);
+    Serial.printf("[Server] Phan hoi: Code %d\n", res);
+}
+
+void loop() {
+    if (!is_handshake_done) {
+        do_handshake();
+    } else {
+        if (CURRENT_MODE == MODE_XI) {
+            encrypt_and_send_to_server();
+            delay(10000); 
+        } else {
+            Serial.println("[Y] Dang lam nhiem vu Gateway (Chuyen tiep cac goi tin khac)...");
+            delay(10000);
+        }
+    }
 }

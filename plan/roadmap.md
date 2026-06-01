@@ -1,76 +1,59 @@
-# LỘ TRÌNH 16 TUẦN: ĐỒ ÁN MẬT MÃ HÓA IOT PAYLOAD
+# LỘ TRÌNH 16 TUẦN: GIẢI PHÁP TRUYỀN TIN BẢO MẬT IOT (Xi -> Y -> SERVER)
 
-Tài liệu này dùng để theo dõi tiến độ thực hiện đồ án. Các hạng mục đã hoàn thành được đánh dấu [x].
-
----
-
-## GIAI ĐOẠN 1: NGHIÊN CỨU VÀ XÂY DỰNG NỀN TẢNG (Tuần 1 - 4) - ĐÃ HOÀN THÀNH
-
-- [x] Nghiên cứu thuyết minh về Mã hóa tầng ứng dụng (AES-GCM) thay thế cho các giải pháp lớp dưới.
-- [x] Thiết kế kiến trúc hệ thống tổng thể (Node X, Node Y, Gateway, Server).
-- [x] Thiết kế cấu trúc gói tin nhị phân tối ưu băng thông.
-- [x] Triển khai module mã hóa và giải mã cốt lõi bằng Python.
-- [x] Xây dựng Flask Server hỗ trợ nhận dữ liệu JSON và chuỗi Hex.
-<!-- - [x] Triển khai giải pháp bảo mật Node-to-Node và Gateway-to-Server (HMAC).  -->
-- [x] Xây dựng Dashboard giám sát cơ bản.
+Tài liệu theo dõi tiến độ phối hợp giữa Tạ Huy Hoàng (Nội dung 1) và Đỗ Anh Quân (Nội dung 2).
 
 ---
 
-## GIAI ĐOẠN 2: CHUYÊN NGHIỆP HÓA VÀ QUẢN LÝ DỮ LIỆU (Tuần 5 - 8) - ĐÃ HOÀN THÀNH
+## 🟢 GIAI ĐOẠN 1: NGHIÊN CỨU VÀ THIẾT KẾ (Tuần 1 - 4) - HOÀN THÀNH
 
-### Tuần 5: Hệ quản trị cơ sở dữ liệu và Quản lý thiết bị
-- [x] Chuyển đổi lưu trữ từ file JSON sang SQLite Database.
-- [x] Triển khai bảng quản lý thiết bị để cấp khóa riêng cho từng Node IoT.
-- [x] Nâng cấp Dashboard với biểu đồ dữ liệu thời gian thực (Line Chart, Pie Chart).
-- [x] Xây dựng module đo đạc độ trễ (Latency) từ đầu cuối đến đầu cuối. (Thêm)
+### Tạ Huy Hoàng (Phần cứng & Truyền thông)
+- [x] Tìm hiểu về phần cứng: ESP32, module LoRa SX1278, GPS NEO-6M.
+- [x] Nghiên cứu phương thức truyền tin Beacon/ACK trong mạng IoT.
+- [x] Thử nghiệm gửi/nhận LoRa cơ bản trên mô phỏng.
 
-### Tuần 6: Phân tích an ninh và Giám sát nâng cao
-- [x] Triển khai bảng nhật ký chi tiết các nỗ lực tấn công (loại tấn công, thời điểm).
-- [x] Bổ sung tính năng: Tự động chặn thiết bị nếu vi phạm quy tắc an ninh quá số lần quy định.
-- [x] Hiển thị trạng thái kết nối và health của từng Node trên Dashboard.
-
-### Tuần 7: Quản trị hệ thống qua giao diện Web
-- [x] Xây dựng giao diện quản lý để thao tác danh sách thiết bị và khóa mật mã (CRUD).
-- [x] Tích hợp tính năng xuất báo cáo dữ liệu dưới dạng CSV phục vụ phân tích. (Thêm)
-- [ ] Triển khai hệ thống cảnh báo qua Email/Telegram khi phát hiện tấn công nghiêm trọng (Chưa cấu hình API Key).(Thêm)
- 
-### Tuần 8: Kiểm định an ninh và Ổn định hệ thống
-- [ ] Kiểm tra khả năng chịu tải của Server Flask khi nhận dữ liệu liên tục.
-- [ ] Tối ưu hóa truy vấn cơ sở dữ liệu để đảm bảo tốc độ xử lý.
-- [ ] Viết tài liệu mô tả các kịch bản tấn công đã được ngăn chặn thành công.
+### Đỗ Anh Quân (Mã hóa & Hệ thống)
+- [x] Phân tích so sánh 2 phương án mã hóa nhẹ: XOR Cipher và AES-128-CBC.
+- [x] Thiết kế kiến trúc hệ thống tổng thể Xi, Y và Server trung tâm.
+- [x] Thiết kế cấu trúc gói tin gửi từ Xi -> Y -> Server: `[16-byte IV] + [Ciphertext]`.
 
 ---
 
-## GIAI ĐOẠN 3: MẬT MÃ HỌC NÂNG CAO (Tuần 9 - 12) (Nâng cao- Tham khảo)
+## 🔵 GIAI ĐOẠN 2: THỰC THI BEACON VÀ MÃ HÓA (Tuần 5 - 8) - ĐANG THỰC HIỆN
 
-### Tuần 9 - 10: Giao thức trao đổi khóa động (ECDH)
-- [ ] Nghiên cứu và triển khai thuật toán Elliptic Curve Diffie-Hellman (X25519).
-- [ ] Xây dựng quy trình bắt tay (Handshake) để tự động thỏa thuận khóa phiên (Session Key).
-- [ ] Loại bỏ hoàn toàn việc sử dụng khóa tĩnh (Static Key) trong truyền thông.
+### Tạ Huy Hoàng (Phần cứng & Truyền thông)
+- [x] Thiết kế chi tiết định dạng gói tin Beacon (Xi) và ACK (Y).
+- [x] **Viết code Xi:** Phát tín hiệu Beacon chờ kết nối.
+- [x] **Viết code Y:** Quét Beacon và gửi tín hiệu ACK phản hồi.
+- [ ] Tích hợp đọc dữ liệu GPS từ module thực tế.
 
-### Tuần 11 - 12: Xoay vòng khóa và Bảo mật phía trước (Forward Secrecy)
-- [ ] Triển khai cơ chế đổi khóa tự động (Key Rotation) theo phiên hoặc theo thời gian.
-- [ ] Kiểm chứng tính chất bảo mật phía trước (Perfect Forward Secrecy) của hệ thống.
-- [ ] Viết chương trình tự động đánh giá độ an toàn mật mã.
+### Đỗ Anh Quân (Mã hóa & Hệ thống)
+- [x] Lựa chọn thuật toán AES-128-CBC để tận dụng Hardware Accelerator của ESP32.
+- [x] Triển khai module mã hóa tại Xi và giải mã tại Server bằng Python.
+- [x] Xây dựng Flask Server tiếp nhận chuỗi Hex từ Gateway.
+
+---
+
+## 🟡 GIAI ĐOẠN 3: TÍCH HỢP HỆ THỐNG VÀ WEB MAP (Tuần 9 - 12)
+
+### Tạ Huy Hoàng (Phần cứng & Truyền thông)
+- [ ] Hoàn thiện Code Xi: Đo cảm biến (Nhiệt độ, độ ẩm, CO, CO2, NH3).
+- [ ] Hoàn thiện Code Y: Chuyển tiếp dữ liệu về Server qua Wi-Fi/4G/5G.
+- [ ] Kiểm tra tính ổn định của luồng Beacon -> ACK -> Data.
+
+### Đỗ Anh Quân (Mã hóa & Hệ thống)
+- [ ] Thiết lập Web Map chuyên nghiệp (OpenStreetMap + Leaflet).
+- [ ] Hiển thị vị trí Xi theo đúng tọa độ gốc, không để nhảy ngẫu nhiên phi lý.
+- [ ] Quản trị Cơ sở dữ liệu SQLite: Lưu trữ lịch sử cảm biến.
 
 ---
 
-## GIAI ĐOẠN 4: TÍCH HỢP PHẦN CỨNG VÀ HOÀN THIỆN (Tuần 13 - 16)
+## 🔴 GIAI ĐOẠN 4: THỰC NGHIỆM VÀ HOÀN THIỆN (Tuần 13 - 16)
 
-### Tuần 13 - 14: Firmware C++ và Tối ưu hóa ESP32
-- [x] Viết mã nguồn C++ mẫu cho ESP32 sử dụng thư viện mbedtls (Chạy trên Wokwi).
-- [ ] Tận dụng bộ tăng tốc phần cứng AES trên chip ESP32 để tối ưu tốc độ.
-- [ ] Triển khai kịch bản truyền thông thực tế giữa 2 thiết bị ESP32 qua Gateway.
-
-### Tuần 15: Đo đạc và Phân tích thực nghiệm
-- [ ] Đo đạc chỉ số RAM, Flash và năng lượng tiêu thụ trên phần cứng thực tế.
-- [ ] So sánh thực nghiệm hiệu năng với các giải pháp bảo mật tiêu chuẩn khác.
-- [ ] Tổng hợp biểu đồ so sánh dữ liệu để đưa vào báo cáo cuối cùng.
-
-### Tuần 15- 16: Hoàn thiện báo cáo và Bảo vệ đồ án
-- [ ] Hoàn thiện nội dung cuốn báo cáo tốt nghiệp.
-- [ ] Chuẩn bị slide thuyết trình và video minh họa hệ thống.
-- [ ] Kiểm tra cuối cùng toàn bộ hệ thống trước khi hội đồng đánh giá.
+### Cả hai cùng thực hiện
+- [ ] Lắp ráp phần cứng thật và đo đạc thực nghiệm ngoài môi trường.
+- [ ] Phân tích kết quả truyền tin, chứng minh AES-CBC chạy nhanh (<20us) và ít tốn tài nguyên.
+- [ ] Hoàn thiện cuốn báo cáo tốt nghiệp và Slide thuyết trình.
+- [ ] Bảo vệ đồ án.
 
 ---
-*Lưu ý: Lộ trình này sẽ được cập nhật liên tục tùy theo tiến độ thực tế.*
+*Lưu ý: Không đi sâu vào mật mã nâng cao, tập trung vào quy trình truyền tin nhanh, gọn nhẹ theo sát tài liệu tham khảo.*

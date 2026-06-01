@@ -10,9 +10,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Bang quan ly thiet bi
-    cursor.execute('''
-    CREATE TABLE devices (
+    cursor.execute('''CREATE TABLE devices (
         device_id TEXT PRIMARY KEY,
         node_key TEXT NOT NULL,
         gateway_key TEXT NOT NULL,
@@ -21,12 +19,9 @@ def init_db():
         latitude REAL,
         longitude REAL,
         description TEXT
-    )
-    ''')
+    )''')
     
-    # Bang du lieu Telemetry (Them nhieu truong cho cac loai cam bien khac nhau)
-    cursor.execute('''
-    CREATE TABLE telemetry (
+    cursor.execute('''CREATE TABLE telemetry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_id TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -39,35 +34,29 @@ def init_db():
         longitude REAL,
         latency REAL,
         status TEXT,
-        error_msg TEXT,
-        FOREIGN KEY (device_id) REFERENCES devices (device_id)
-    )
-    ''')
+        error_msg TEXT
+    )''')
     
-    # Bang nhat ky tan cong
-    cursor.execute('''
-    CREATE TABLE attack_logs (
+    cursor.execute('''CREATE TABLE attack_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_id TEXT,
         ip_address TEXT,
         attack_type TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         details TEXT
-    )
-    ''')
+    )''')
     
-    # KHOI TAO 3 THIET BI (Khoa phai dung dung 16 ky tu)
+    # DUNG KHOA 16 KY TU TRONG SUOT
     devices_data = [
-        ('NODE_X_HEALTH', 'key_x_1234567890', 'gw_secret_000001', -1, 'active', 21.0045, 105.8433, 'Thiet bi deo theo doi suc khoe'),
-        ('NODE_Y_ENV',    'key_y_0987654321', 'gw_secret_000001', -1, 'active', 21.0065, 105.8453, 'Tram quan trac moi truong'),
-        ('GATEWAY_01',    'none',             'gw_secret_000001', -1, 'active', 21.0055, 105.8443, 'Tram trung chuyen du lieu')
+        ('IOT_NODE_01', '1234567890123456', 'gateway_secret_k', -1, 'active', 21.0045, 105.8433, 'Cam bien 1'),
+        ('IOT_NODE_02', '6543210987654321', 'gateway_secret_k', -1, 'active', 21.0065, 105.8453, 'Cam bien 2'),
+        ('GW01',        'none_node_key_00', 'gateway_secret_k', -1, 'active', 21.0055, 105.8443, 'Gateway')
     ]
     
     cursor.executemany("INSERT INTO devices VALUES (?,?,?,?,?,?,?,?)", devices_data)
-    
     conn.commit()
     conn.close()
-    print(f"Khoi tao he thong 3 thiet bi vao Database {DB_NAME} thanh cong.")
+    print("Database REBUILT successfully.")
 
 if __name__ == "__main__":
     init_db()

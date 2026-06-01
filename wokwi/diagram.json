@@ -3,20 +3,19 @@
   "author": "Do Anh Quan",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-v1", "id": "esp32", "top": -48, "left": -0.4, "attrs": {} },
-    { "type": "wokwi-oled-128x64", "id": "oled", "top": 150, "left": -100, "attrs": {} },
-    { "type": "wokwi-bme280", "id": "bme280", "top": 150, "left": 100, "attrs": {} }
+    { "type": "board-esp32-devkit-v1", "id": "esp32", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-oled-128x64", "id": "oled", "top": -250, "left": 0, "attrs": {} },
+    { "type": "wokwi-max30102", "id": "max", "top": 200, "left": -150, "attrs": {} }
   ],
   "connections": [
     [ "esp32:GND.1", "oled:GND", "black", [ "v0" ] ],
     [ "esp32:3V3", "oled:VCC", "red", [ "v0" ] ],
     [ "esp32:SDA", "oled:SDA", "green", [ "v0" ] ],
     [ "esp32:SCL", "oled:SCL", "blue", [ "v0" ] ],
-    
-    [ "esp32:GND.1", "bme280:GND", "black", [ "v0" ] ],
-    [ "esp32:3V3", "bme280:VIN", "red", [ "v0" ] ],
-    [ "esp32:SDA", "bme280:SDA", "green", [ "v0" ] ],
-    [ "esp32:SCL", "bme280:SCL", "blue", [ "v0" ] ]
+    [ "esp32:GND.1", "max:GND", "black", [ "v0" ] ],
+    [ "esp32:3V3", "max:VIN", "red", [ "v0" ] ],
+    [ "esp32:SDA", "max:SDA", "green", [ "v0" ] ],
+    [ "esp32:SCL", "max:SCL", "blue", [ "v0" ] ]
   ],
   "dependencies": {}
 }

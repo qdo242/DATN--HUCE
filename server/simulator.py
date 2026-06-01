@@ -1,47 +1,32 @@
 import os
-from dotenv import load_dotenv
 from Cryptodome.Cipher import AES
-from Cryptodome.Hash import HMAC, SHA256
 import json
 import secrets
 
-# Nap bien moi truong
-load_dotenv()
-
-# Khoa bi mat (Lay tu file .env)
-NODE_KEY = os.getenv('NODE_KEY', 'default_node_key_').encode('utf-8')
-GATEWAY_KEY = os.getenv('GATEWAY_KEY', 'default_gw_key_').encode('utf-8')
-GATEWAY_ID = b'\x00\x00\x00\x01' # ID của Gateway (4 bytes)
+# KHOA DUNG CHUNG TOAN MANG (16 byte cho AES-128)
+NETWORK_KEY = bytes([0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+                     0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C])
 
 def simulate_node_to_server(temp, humidity, seq):
-    """
-    Quy trình:
-    1. Node mã hóa dữ liệu (AES-GCM)
-    2. Gateway bọc thêm ID và ký HMAC (Xác thực nguồn gốc)
-    """
-    # --- PHẦN NODE (ESP32 X) ---
-    data = {"id": "ESP32_NODE_X", "temp": temp, "humi": humidity, "seq": seq}
+    # Tao Payload JSON
+    data = {"id": "IOT_NODE_01", "t": temp, "h": humidity, "co2": 450, "lat": 21.0045, "lon": 105.8433, "seq": seq}
     plaintext = json.dumps(data).encode('utf-8')
-    nonce = secrets.token_bytes(12)
-    cipher = AES.new(NODE_KEY, AES.MODE_GCM, nonce=nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
     
-    # Payload từ Node gửi cho Gateway
-    node_payload = nonce + ciphertext + tag
+    # Pad plaintext voi ky tu NULL de chieu dai chia het cho 16
+    padded_len = len(plaintext)
+    if padded_len % 16 != 0:
+        padded_len = ((padded_len // 16) + 1) * 16
+    padded_plaintext = plaintext.ljust(padded_len, b'\0')
+
+    # Ma hoa AES-128-CBC
+    iv = secrets.token_bytes(16)
+    cipher = AES.new(NETWORK_KEY, AES.MODE_CBC, iv=iv)
+    ciphertext = cipher.encrypt(padded_plaintext)
     
-    # --- PHẦN GATEWAY (ESP32 GW) ---
-    # Gateway thêm ID của mình vào đầu
-    packet_to_sign = GATEWAY_ID + node_payload
-    
-    # Gateway ký HMAC bằng GATEWAY_KEY
-    h = HMAC.new(GATEWAY_KEY, digestmod=SHA256)
-    h.update(packet_to_sign)
-    hmac_sig = h.digest() # 32 bytes SHA256
-    
-    # Gói tin cuối cùng gửi lên Server
-    final_packet = packet_to_sign + hmac_sig
+    # Dong goi: [16 byte IV] + [Ciphertext]
+    final_packet = iv + ciphertext
     return final_packet
 
 if __name__ == "__main__":
-    p = simulate_node_to_server(25.0, 60, 1)
+    p = simulate_node_to_server(28.5, 60, 1)
     print(f"Generated Secure Packet: {p.hex()}")
