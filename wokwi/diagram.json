@@ -1,21 +1,17 @@
 {
   "version": 1,
-  "author": "Do Anh Quan",
+  "author": "Do Anh Quan & Ta Huy Hoang",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-v1", "id": "esp_x", "top": -150, "left": -250, "attrs": {} },
-    { "type": "board-esp32-devkit-v1", "id": "esp_y", "top": -150, "left": 250, "attrs": {} },
-    { "type": "board-esp32-devkit-v1", "id": "esp_gw", "top": 200, "left": 0, "attrs": {} },
-    { "type": "wokwi-oled-128x64", "id": "oled", "top": -300, "left": -250, "attrs": {} }
+    { "type": "board-esp32-devkit-v1", "id": "esp_xi", "top": -100, "left": -300, "attrs": {} },
+    { "type": "board-esp32-devkit-v1", "id": "esp_y", "top": -100, "left": 200, "attrs": {} }
   ],
   "connections": [
-    [ "esp_x:GND.1", "oled:GND", "black", [ "v0" ] ],
-    [ "esp_x:3V3", "oled:VCC", "red", [ "v0" ] ],
-    [ "esp_x:SDA", "oled:SDA", "green", [ "v0" ] ],
-    [ "esp_x:SCL", "oled:SCL", "blue", [ "v0" ] ],
-    
-    [ "esp_x:GND.2", "esp_x:4", "black", [ "h0" ] ],
-    [ "esp_y:GND.2", "esp_y:5", "black", [ "h0" ] ]
+    ["esp_xi:TX0", "$serialMonitor:RX", "", []],
+    ["esp_xi:RX0", "$serialMonitor:TX", "", []],
+    ["esp_y:TX0", "$serialMonitor:RX", "", []],
+    ["esp_y:RX0", "$serialMonitor:TX", "", []],
+    ["esp_xi:GND.1", "esp_xi:GPIO4", "black", []]
   ],
   "dependencies": {}
 }

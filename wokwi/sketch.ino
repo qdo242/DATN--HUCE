@@ -1,158 +1,132 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <mbedtls/aes.h>
 
 #define PIN_X 4
-#define PIN_Y 5
-
-char current_id[20];
-bool is_node_xi = false;
-bool is_node_y = false;
-bool is_handshake_done = false;
-
-const char* serverUrl = "https://4e24905eecc3de.lhr.life/receive-data"; // Public Tunnel
 
 const uint8_t NETWORK_KEY[16] = {
-    0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
-    0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C
+  0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
+  0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
 };
 
-Adafruit_SSD1306 display(128, 64, &Wire, -1);
-float lat = 21.00355; 
-float lon = 105.84255;
+char device_id[20];
+bool is_xi = false, is_gateway = false;
+float lat = 21.00355, lon = 105.84255;
 int seq = 1;
+char json_buf[512];
+
+static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
+  mbedtls_aes_context ctx;
+  mbedtls_aes_init(&ctx);
+  mbedtls_aes_setkey_enc(&ctx, NETWORK_KEY, 128);
+  for (int i = 0; i < 16; i++) iv[i] = random(256);
+  size_t pl = ((len + 15) / 16) * 16;
+  uint8_t* pad = (uint8_t*)calloc(pl, 1);
+  if (!pad) { mbedtls_aes_free(&ctx); return 0; }
+  memcpy(pad, pt, len);
+  mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, pl, iv, pad, ct);
+  mbedtls_aes_free(&ctx);
+  free(pad);
+  return pl;
+}
 
 void setup() {
-    Serial.begin(115200);
-    delay(100); // Cho on dinh dien ap
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("\n========== BOOT ==========");
 
-    pinMode(PIN_X, INPUT_PULLUP);
-    pinMode(PIN_Y, INPUT_PULLUP);
-    delay(50); // Cho pin pullup on dinh
+  pinMode(PIN_X, INPUT_PULLUP);
+  delay(50);
 
-    if (digitalRead(PIN_X) == LOW) {
-        strcpy(current_id, "IOT_NODE_01"); // Xi
-        is_node_xi = true;
-    } else if (digitalRead(PIN_Y) == LOW) {
-        strcpy(current_id, "IOT_NODE_02"); // Xj hoac Y phu
-        is_node_y = true;
-    } else {
-        strcpy(current_id, "GATEWAY_01"); // Y
-    }
+  if (digitalRead(PIN_X) == LOW) {
+    strcpy(device_id, "Xi_01");
+    is_xi = true;
+    Serial.println("MODE: XI (Sensor Node)");
+  } else {
+    strcpy(device_id, "Y_GW");
+    is_gateway = true;
+    Serial.println("MODE: GATEWAY");
+  }
 
-    Serial.printf("\n[SYSTEM] Booting %s...\n", current_id);
-
-    Wire.begin();
-    if (is_node_xi) {
-        display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-        display.setTextColor(WHITE);
-        display.clearDisplay();
-        display.println("Xi: READY");
-        display.display();
-        Serial.println("[Xi] He thong san sang. Bat dau phat Beacon (LoRa)...");
-    } else if (is_node_y) {
-        Serial.println("[Y] Node Y (Moi truong) san sang...");
-    } else {
-        Serial.println("[GW] Gateway san sang. Dang quet Beacon (LoRa)...");
-    }
-
+  if (is_gateway) {
     WiFi.begin("Wokwi-GUEST", "");
-    while (WiFi.status() != WL_CONNECTED) { delay(500); }
-    Serial.println("WiFi Connected!");
-    
-    // De Gateway khoi dong xong truoc
-    if(is_node_xi) delay(3000);
-}
-
-void do_handshake() {
-    if (is_node_xi) {
-        Serial.println("\n--- GIAI DOAN 1: HANDSHAKE ---");
-        Serial.println("[Xi] LoRa TX: <BEACON_XI_01>");
-        display.clearDisplay(); display.setCursor(0,0);
-        display.println("Xi: SENDING BEACON"); display.display();
-        
-        delay(3000); 
-        
-        Serial.println("[Xi] LoRa RX: <ACK_OK_FROM_Y>");
-        Serial.println("[Xi] => Handshake thanh cong! Chuyen sang che do truyen tin bao mat.");
-        is_handshake_done = true;
-    } 
-    else if (!is_node_xi && !is_node_y) {
-        Serial.println("\n--- GIAI DOAN 1: HANDSHAKE ---");
-        Serial.println("[Y] LoRa RX: <BEACON_XI_01>");
-        delay(1000);
-        
-        Serial.println("[Y] LoRa TX: <ACK_OK_FROM_Y>");
-        is_handshake_done = true;
-        delay(5000);
-    } else {
-        is_handshake_done = true; // Node phu bo qua
+    Serial.print("WiFi");
+    int w = 0;
+    while (WiFi.status() != WL_CONNECTED && w < 30) {
+      delay(500); Serial.print(".");
+      w++;
     }
-}
+    Serial.println(w < 30 ? " OK" : " FAIL");
+    if (WiFi.status() == WL_CONNECTED)
+      Serial.printf("IP: %s\n", WiFi.localIP().toString().c_str());
+  }
 
-size_t aes_encrypt(uint8_t* plaintext, size_t length, uint8_t* ciphertext, uint8_t* iv) {        
-    mbedtls_aes_context aes_ctx;
-    mbedtls_aes_init(&aes_ctx);
-    mbedtls_aes_setkey_enc(&aes_ctx, NETWORK_KEY, 128); 
-    for(int i = 0; i < 16; i++) iv[i] = random(0, 255);
-    size_t padded_len = length;
-    if (padded_len % 16 != 0) padded_len = ((padded_len / 16) + 1) * 16;
-    uint8_t padded_pt[padded_len] = {0};
-    memcpy(padded_pt, plaintext, length);
-    mbedtls_aes_crypt_cbc(&aes_ctx, MBEDTLS_AES_ENCRYPT, padded_len, iv, padded_pt, ciphertext);
-    mbedtls_aes_free(&aes_ctx);
-    return padded_len;
-}
-
-void encrypt_and_send_to_server() {
-    float t = 28.5 + (random(-5, 5) / 10.0);
-    float h = 60.0;
-    float co2 = random(400, 450);
-    lat += 0.0001; 
-    lon += 0.0001;
-
-    String json = "{\"id\":\"" + String(current_id) + "\",\"t\":" + String(t, 1) + ",\"h\":" + String(h, 1) + ",\"co2\":" + String(co2, 0) + ",\"lat\":" + String(lat, 5) + ",\"lon\":" + String(lon, 5) + ",\"seq\":" + String(seq++) + "}";
-    
-    Serial.println("\n--- GIAI DOAN 2: DATA TRANSMISSION ---");
-    Serial.println("[" + String(current_id) + "] Du lieu tho: " + json);
-
-    uint8_t iv[16];
-    uint8_t ciphertext[128] = {0}; 
-    size_t enc_len = aes_encrypt((uint8_t*)json.c_str(), json.length(), ciphertext, iv);
-
-    uint8_t packet_to_send[16 + enc_len];
-    memcpy(packet_to_send, iv, 16);
-    memcpy(packet_to_send + 16, ciphertext, enc_len);
-
-    String hex = ""; char b[3];
-    for(size_t i=0; i < 16 + enc_len; i++) { sprintf(b, "%02x", packet_to_send[i]); hex += b; }
-
-    HTTPClient http;
-    http.begin(serverUrl);
-    http.addHeader("Content-Type", "application/json");
-    int res = http.POST("{\"payload\":\"" + hex + "\"}");
-    
-    if (is_node_xi) {
-        display.clearDisplay(); display.setCursor(0,0);
-        display.printf("Xi -> Y -> Server\nRes: %d\nCO2: %.0f\nLat: %.5f", res, co2, lat);
-        display.display();
-    }
-    Serial.printf("[Server] Phan hoi: Code %d\n", res);
+  if (is_xi) delay(2000);
+  Serial.println("========== READY ==========\n");
 }
 
 void loop() {
-    if (!is_handshake_done) {
-        do_handshake();
-    } else {
-        if (is_node_xi || is_node_y) {
-            encrypt_and_send_to_server();
-            delay(10000); 
-        } else {
-            Serial.println("[Y] Dang lam nhiem vu Gateway (Chuyen tiep cac goi tin khac)...");
-            delay(10000);
-        }
+  if (is_xi) {
+    // === GIAI DOAN 1: BEACON ===
+    Serial.println("\n=== BEACON ===");
+    Serial.printf("[%s] => Phat Beacon (LoRa simulated)\n", device_id);
+    delay(2000);
+
+    // === GIAI DOAN 2: NHAN ACK ===
+    Serial.printf("[Y_GW] => Nhan Beacon, gui ACK\n");
+    Serial.printf("[%s] => Nhan ACK, bat dau truyen\n", device_id);
+    delay(1000);
+
+    // === GIAI DOAN 3: DOC CAM BIEN ===
+    float t = 28.0 + random(-30, 30) / 10.0;
+    float h = 60.0 + random(-20, 20) / 10.0;
+    float c2 = 400 + random(50);
+    lat += 0.0001; lon += 0.0001;
+    Serial.printf("[%s] Temp=%.1f Humi=%.1f CO2=%.0f GPS=%.5f,%.5f\n",
+      device_id, t, h, c2, lat, lon);
+
+    // === GIAI DOAN 4: MA HOA ===
+    snprintf(json_buf, sizeof(json_buf),
+      "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f,\"co2\":%.0f,\"lat\":%.5f,\"lon\":%.5f,\"seq\":%d}",
+      device_id, t, h, c2, lat, lon, seq++);
+
+    uint8_t iv[16], ct[256];
+    size_t el = aes_encrypt((uint8_t*)json_buf, strlen(json_buf), ct, iv);
+    if (el == 0) { Serial.println("ENCRYPT FAIL"); delay(10000); return; }
+    Serial.printf("[%s] Encrypted (%d bytes)\n", device_id, el);
+
+    // === GIAI DOAN 5: GUI QUA LoRa ===
+    Serial.printf("[%s] => Gui du lieu ma hoa qua LoRa\n", device_id);
+    delay(1500);
+
+    // === GIAI DOAN 6: GATEWAY NHAN & FORWARD ===
+    char hex[512]; hex[0] = 0; char b[4];
+    for (size_t i = 0; i < 16 + el; i++) {
+      uint8_t v = i < 16 ? iv[i] : ct[i - 16];
+      sprintf(b, "%02x", v); strcat(hex, b);
     }
+    Serial.printf("[Y_GW] Nhan %d bytes ma hoa\n", 16 + el);
+    Serial.println("[Y_GW] Them HMAC... (simulated)");
+    Serial.printf("[Y_GW] Forward len Server: payload=%s...\n", String(hex).substring(0, 40).c_str());
+
+    if (WiFi.status() == WL_CONNECTED) {
+      char body[580];
+      snprintf(body, sizeof(body), "{\"payload\":\"%s\"}", hex);
+      HTTPClient http;
+      http.begin("http://10.0.0.2:5000/receive-data");
+      http.addHeader("Content-Type", "application/json");
+      int r = http.POST((uint8_t*)body, strlen(body));
+      Serial.printf("[SERVER] Response: %d\n", r);
+      http.end();
+    } else {
+      Serial.println("[GW] No WiFi, skip forward");
+    }
+
+    delay(8000);
+  }
+
+  else if (is_gateway) {
+    Serial.println("[GW] Listening for LoRa packets... (simulated)");
+    delay(10000);
+  }
 }
