@@ -1,22 +1,23 @@
-# Phân tích hiệu năng và tính khả thi của giải pháp
+# Phân tích hiệu năng và lựa chọn giải pháp
 
-## 1. Hạn chế của các giao thức bảo mật lớp dưới
-Việc triển khai các giao thức bảo mật tiêu chuẩn (như TLS) trên thiết bị nhúng ESP32 thường gặp các rào cản kỹ thuật:
-- **Tài nguyên bộ nhớ:** Quá trình thiết lập kết nối (Handshake) yêu cầu dung lượng RAM lớn cho các chứng chỉ số và bộ đệm.
-- **Tiêu thụ năng lượng:** Các phép toán mã hóa bất đối xứng tiêu tốn chu kỳ xử lý của CPU, ảnh hưởng đến thời lượng pin.
-- **Băng thông:** Tiêu đề (Header) của các giao thức này thường lớn so với kích thước thực tế của dữ liệu cảm biến.
+## 1. Yêu cầu
+- **Mục tiêu:** Truyền tin nhanh, đơn giản, ít tốn tài nguyên
+- **Thiết bị:** ESP32 (240MHz, 520KB SRAM, 4MB Flash)
+- **Module LoRa:** SX1278, băng tần 433MHz
 
-## 2. Đặc điểm của giải pháp mã hóa tầng ứng dụng
-Giải pháp thiết kế tập trung vào mã hóa đối xứng tại lớp ứng dụng, sử dụng các tham số định lượng sau để đánh giá:
-- **Dung lượng Payload:** Kích thước gói tin sau mã hóa tăng thêm cố định 28 bytes (12 bytes Nonce + 16 bytes Tag) so với dữ liệu gốc.
-- **Chi phí tính toán:** Đo lường bằng chu kỳ CPU hoặc thời gian thực thi (ms) trên vi điều khiển ESP32.
-- **Năng lượng tiêu thụ:** Ước tính dựa trên dòng điện trung bình khi vi điều khiển hoạt động trong chế độ có và không có bộ tăng tốc AES phần cứng.
+## 2. So sánh các phương án mã hóa
 
-## 3. Phân tích so sánh thực nghiệm
+| Phương án | Tốc độ | Code | RAM | Bảo mật | Đánh giá |
+|-----------|--------|------|-----|---------|----------|
+| **Không mã hóa** | Nhanh nhất | 0 dòng | 0 | Không | Không an toàn |
+| **XOR Cipher** | Rất nhanh | 3-5 dòng | ~0 | Yếu | OK cho demo |
+| **AES-128-CBC** | Nhanh (~17us) | ~20 dòng | ~1KB | Tốt | **Được chọn** |
+| **AES-128-GCM** | Nhanh (~20us) | ~30 dòng | ~2KB | Rất tốt | Mở rộng sau |
+| **TLS** | Chậm | Phức tạp | >30KB | Cao nhất | Không phù hợp |
 
-| Tiêu chí | Giải pháp mã hóa ứng dụng (Đề xuất) | Giao thức truyền thống (TLS 1.2/1.3) |
-| :--- | :--- | :--- |
-| **Dung lượng Header/Overhead** | ~60-80 bytes | > 2000 bytes (Handshake) |
-| **Độ trễ thiết lập (Latency)** | < 10 ms (Không handshake) | 100-500 ms (Handshake) |
-| **Yêu cầu RAM tối thiểu** | < 10 KB | 30-50 KB |
-| **Độ phức tạp thuật toán** | O(n) | O(n^2) trong giai đoạn handshake |
+## 3. Kết luận
+**AES-128-CBC** là lựa chọn phù hợp nhất vì:
+- Tận dụng hardware accelerator ESP32 (tốc độ ~17-18us)
+- Thư viện mbedtls có sẵn, code đơn giản
+- Bảo mật đủ tốt cho ứng dụng IoT nghiên cứu
+- Chi phí overhead thấp: chỉ thêm 16 byte IV mỗi gói tin

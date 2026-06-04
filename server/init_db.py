@@ -25,9 +25,14 @@ def init_db():
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         temperature REAL,
         humidity REAL,
+        pressure REAL,
         co2 REAL,
         co REAL,
         nh3 REAL,
+        heart_rate INTEGER,
+        spo2 REAL,
+        altitude REAL,
+        satellites INTEGER,
         latitude REAL,
         longitude REAL,
         status TEXT,
@@ -36,9 +41,10 @@ def init_db():
 
     common_key = "key_x_1234567890"
     devices_data = [
-        ('Xi_01', common_key, -1, 21.00355, 105.84255, 'Node cam bien Xi_01'),
-        ('Xi_02', common_key, -1, 21.00555, 105.84455, 'Node cam bien Xi_02'),
-        ('Y_GW',  common_key, -1, 21.00455, 105.84355, 'Gateway di dong Y')
+        ('Xi_01', common_key, -1, 21.00355, 105.84255, 'Node cam bien Xi_01 (simulation)'),
+        ('Xi_02', common_key, -1, 21.00555, 105.84455, 'Node cam bien Xi_02 (simulation)'),
+        ('Y_GW',  common_key, -1, 21.00455, 105.84355, 'Gateway di dong Y'),
+        ('TBEAM_01', common_key, -1, 21.00355, 105.84255, 'TTGO T-Beam BME280 + MAX30102 + GPS')
     ]
 
     cursor.executemany(

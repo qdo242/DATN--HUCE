@@ -3,15 +3,11 @@
   "author": "Do Anh Quan & Ta Huy Hoang",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-v1", "id": "esp_xi", "top": -100, "left": -300, "attrs": {} },
-    { "type": "board-esp32-devkit-v1", "id": "esp_y", "top": -100, "left": 200, "attrs": {} }
+    { "type": "board-esp32-devkit-v1", "id": "esp_xi", "top": -100, "left": -300, "attrs": {} }
   ],
   "connections": [
     ["esp_xi:TX0", "$serialMonitor:RX", "", []],
-    ["esp_xi:RX0", "$serialMonitor:TX", "", []],
-    ["esp_y:TX0", "$serialMonitor:RX", "", []],
-    ["esp_y:RX0", "$serialMonitor:TX", "", []],
-    ["esp_xi:GND.1", "esp_xi:GPIO4", "black", []]
+    ["esp_xi:RX0", "$serialMonitor:TX", "", []]
   ],
   "dependencies": {}
 }

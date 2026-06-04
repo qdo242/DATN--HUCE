@@ -15,6 +15,8 @@ def make_packet(device_id, temp, humid, seq, lat=21.00355, lon=105.84255):
         "t": temp,
         "h": humid,
         "co2": 420,
+        "co": 5.0,
+        "nh3": 2.0,
         "lat": lat,
         "lon": lon,
         "seq": seq

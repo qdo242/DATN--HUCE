@@ -3,6 +3,10 @@ import sqlite3
 from flask import Flask, request, jsonify
 from Cryptodome.Cipher import AES
 import json
+import logging
+
+logging.basicConfig(filename='server_debug.log', level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
 
 app = Flask(__name__)
 DB_NAME = os.path.join(os.path.dirname(__file__), '..', 'iot_security.db')
@@ -29,6 +33,24 @@ def verify_and_decrypt(raw_data):
     except Exception as e:
         return None, f"Decryption Failed: {str(e)}"
 
+def check_seq(device_id, seq):
+    conn = get_db_connection()
+    row = conn.execute('SELECT last_seq FROM devices WHERE device_id = ?', (device_id,)).fetchone()
+    if row is None:
+        conn.close()
+        return False, "Device not found"
+    if seq is not None and seq <= row['last_seq']:
+        conn.close()
+        return False, "Replay attack detected (seq <= last_seq)"
+    conn.close()
+    return True, None
+
+def update_seq(device_id, seq):
+    conn = get_db_connection()
+    conn.execute('UPDATE devices SET last_seq = ? WHERE device_id = ?', (seq, device_id))
+    conn.commit()
+    conn.close()
+
 def log_telemetry(data, status):
     conn = get_db_connection()
     device_id = data.get('id', 'UNKNOWN')
@@ -44,15 +66,23 @@ def log_telemetry(data, status):
 
     conn.execute('''
         INSERT INTO telemetry
-            (device_id, temperature, humidity, co2, co, nh3, latitude, longitude, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (device_id, temperature, humidity, pressure,
+             co2, co, nh3,
+             heart_rate, spo2, altitude, satellites,
+             latitude, longitude, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         device_id,
         data.get('t'),
         data.get('h'),
+        data.get('p'),
         data.get('co2'),
         data.get('co'),
         data.get('nh3'),
+        data.get('hr'),
+        data.get('spo2'),
+        data.get('alt'),
+        data.get('sats'),
         lat, lon, status
     ))
     conn.commit()
@@ -65,12 +95,24 @@ def receive_data():
         return jsonify({"status": "error", "message": "Missing payload"}), 400
 
     try:
-        raw_data = bytes.fromhex(json_input['payload'])
+        payload = json_input['payload']
+        logging.debug(f"Received payload len={len(payload)} first50={payload[:50]}")
+        raw_data = bytes.fromhex(payload)
         data, error = verify_and_decrypt(raw_data)
 
         if error:
             print(f"[!] Loi giai ma: {error}")
+            logging.debug(f"Decrypt error: {error}")
             return jsonify({"status": "error", "reason": error}), 403
+
+        ok, msg = check_seq(data.get('id'), data.get('seq'))
+        if not ok:
+            log_telemetry(data, f"Canh bao: {msg}")
+            print(f"[!] {msg}")
+            return jsonify({"status": "error", "reason": msg}), 403
+
+        if data.get('seq') is not None:
+            update_seq(data.get('id'), data.get('seq'))
 
         log_telemetry(data, "An toan")
         print(f"[+] Da giai ma tu {data.get('id')}: t={data.get('t')} h={data.get('h')} lat={data.get('lat')}")
