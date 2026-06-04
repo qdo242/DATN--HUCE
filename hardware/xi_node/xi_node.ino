@@ -39,7 +39,7 @@ const uint8_t NETWORK_KEY[16] = {
   0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
   0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
 };
-const char* XI_ID   = "XI_01";
+const char* XI_ID   = "Xi_01";
 const float LORA_FREQ = 868E6;      // 868 MHz (SX1276)
 const long  LORA_TX_POWER = 17;     // dBm
 const int   LORA_CS  = 18;
@@ -63,12 +63,15 @@ static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
   mbedtls_aes_context ctx;
   mbedtls_aes_init(&ctx);
   mbedtls_aes_setkey_enc(&ctx, NETWORK_KEY, 128);
-  for (int i = 0; i < 16; i++) iv[i] = random(256);
+  uint8_t iv_copy[16];
+  for (int i = 0; i < 16; i++) iv_copy[i] = random(256);
   size_t pl = ((len + 15) / 16) * 16;
   uint8_t pad[256];
   memset(pad, 0, pl);
   memcpy(pad, pt, len);
+  memcpy(iv, iv_copy, 16);
   mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, pl, iv, pad, ct);
+  memcpy(iv, iv_copy, 16);
   mbedtls_aes_free(&ctx);
   return pl;
 }

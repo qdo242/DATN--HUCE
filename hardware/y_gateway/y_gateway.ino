@@ -28,9 +28,11 @@
 //                      CAU HINH
 // ============================================================
 const char* Y_ID = "Y_01";
-const char* WIFI_SSID = "Wokwi-GUEST";
-const char* WIFI_PASS = "";
-const char* SERVER_URL = "http://192.168.1.100:5000/receive-data";  // thay bang IP server
+// THAY bang WiFi nha ban
+const char* WIFI_SSID = "WIFI_CUA_BAN";
+const char* WIFI_PASS = "MAT_KHAU_WIFI";
+// THAY bang IP cua may chay Flask server (vd: 192.168.1.5)
+const char* SERVER_URL = "http://192.168.1.100:5000/receive-data";
 
 const float LORA_FREQ = 433E6;       // 433 MHz (SX1278) - demo
 const int   LORA_CS  = 5;
