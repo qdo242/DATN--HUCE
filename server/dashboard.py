@@ -47,14 +47,17 @@ with tabs[1]:
     st.write("### Vi tri thuc te cua thiet bi Xi va Y tren ban do")
     m = folium.Map(location=[21.0045, 105.8433], zoom_start=16)
 
-    map_query = """
+    df_map = load_data("""
         SELECT t.device_id, t.latitude, t.longitude, d.description
         FROM telemetry t
-        JOIN (SELECT device_id, MAX(timestamp) as max_ts FROM telemetry GROUP BY device_id) tm
-        ON t.device_id = tm.device_id AND t.timestamp = tm.max_ts
         JOIN devices d ON t.device_id = d.device_id
-    """
-    df_map = load_data(map_query)
+        WHERE t.timestamp = (SELECT MAX(t2.timestamp) FROM telemetry t2 WHERE t2.device_id = t.device_id)
+        UNION
+        SELECT device_id, latitude, longitude, description
+        FROM devices
+        WHERE latitude IS NOT NULL
+          AND device_id NOT IN (SELECT DISTINCT device_id FROM telemetry)
+    """)
 
     if not df_map.empty:
         for _, row in df_map.iterrows():

@@ -2,9 +2,8 @@
 #include <HTTPClient.h>
 #include <mbedtls/aes.h>
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
-#include <SSD1306Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 const uint8_t NETWORK_KEY[16] = {
   0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
@@ -12,13 +11,14 @@ const uint8_t NETWORK_KEY[16] = {
 };
 const char* XI_ID = "Xi_01";
 const char* Y_ID  = "Y_01";
-const char* SERVER_URL = "https://dirty-dingos-serve.loca.lt/receive-data";
+const char* SERVER_URL = "https://tasty-roses-unite.loca.lt/receive-data";
 
-Adafruit_BME280 bme;
-SSD1306Wire oled(0x3c, 21, 22);
+#define OLED_RESET -1
+Adafruit_SSD1306 oled(128, 64, &Wire, OLED_RESET);
 
 char json_buf[512];
-uint32_t seq = 1;
+uint32_t seq;
+uint32_t cycles = 0;
 float lat = 21.00355, lon = 105.84255;
 
 static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
@@ -39,12 +39,17 @@ static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
 }
 
 void hien_thi(const char* line1, const char* line2, const char* line3, const char* line4) {
-  oled.clear();
-  oled.setFont(ArialMT_Plain_10);
-  oled.drawString(0, 0,  line1 ? line1 : "");
-  oled.drawString(0, 14, line2 ? line2 : "");
-  oled.drawString(0, 28, line3 ? line3 : "");
-  oled.drawString(0, 42, line4 ? line4 : "");
+  oled.clearDisplay();
+  oled.setTextColor(WHITE);
+  oled.setTextSize(1);
+  oled.setCursor(0, 0);
+  oled.println(line1 ? line1 : "");
+  oled.setCursor(0, 14);
+  oled.println(line2 ? line2 : "");
+  oled.setCursor(0, 28);
+  oled.println(line3 ? line3 : "");
+  oled.setCursor(0, 42);
+  oled.println(line4 ? line4 : "");
   oled.display();
 }
 
@@ -57,16 +62,15 @@ void setup() {
   Serial.println("==========================================");
 
   Wire.begin(21, 22);
-
-  oled.init();
-  oled.flipScreenVertically();
-  oled.setFont(ArialMT_Plain_10);
+  delay(500);
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("[!] OLED init FAIL");
+  } else {
+    Serial.println("[+] OLED OK");
+  }
+  oled.clearDisplay();
+  oled.display();
   hien_thi("Dang khoi dong...", "", "", "");
-
-  if (!bme.begin(0x76))
-    Serial.println("[!] Loi BME280");
-  else
-    Serial.println("[+] BME280 OK");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin("Wokwi-GUEST");
@@ -86,6 +90,7 @@ void setup() {
   }
 
   randomSeed(analogRead(0));
+  seq = 1000 + random(9000);
   delay(1000);
 }
 
@@ -110,14 +115,9 @@ void loop() {
   // ===== PHASE 3: SENSOR + AES =====
   Serial.println("\n--- SENSOR + ENCRYPT ---");
 
-  float t = bme.readTemperature();
-  float h = bme.readHumidity();
-  float p = bme.readPressure() / 100.0F;
-  if (isnan(t) || isnan(h) || isnan(p)) {
-    t = 28.0 + random(-30, 30) / 10.0;
-    h = 60.0 + random(-20, 20) / 10.0;
-    p = 1005.0 + random(30);
-  }
+  float t = 28.0 + random(-30, 30) / 10.0;
+  float h = 60.0 + random(-20, 20) / 10.0;
+  float p = 1005.0 + random(30);
   float c2 = 400 + random(50);
   float co = 5.0 + random(30) / 10.0;
   float nh3 = 2.0 + random(20) / 10.0;
@@ -133,10 +133,10 @@ void loop() {
   snprintf(buf3, sizeof(buf3), "GPS:%.5fN %.5fE", lat, lon);
   hien_thi("XI: Doc cam bien", buf, buf2, buf3);
 
-  Serial.printf("  BME280  -> T=%.1fC  H=%.0f%%  P=%.0fhPa\n", t, h, p);
-  Serial.printf("  MAX30102-> HR=%d bpm  SpO2=%.0f%%\n", hr, spo2);
-  Serial.printf("  GPS     -> lat=%.5f lon=%.5f alt=10m sats=%d\n", lat, lon, sats);
-  Serial.printf("  MQ (sim)-> CO2=%.0f CO=%.1f NH3=%.1f\n", c2, co, nh3);
+  Serial.printf("  SIM: T=%.1fC H=%.0f%% P=%.0fhPa\n", t, h, p);
+  Serial.printf("  SIM: HR=%d SpO2=%.0f%%\n", hr, spo2);
+  Serial.printf("  SIM: GPS=%.5fN %.5fE alt=10m sats=%d\n", lat, lon, sats);
+  Serial.printf("  SIM: CO2=%.0f CO=%.1f NH3=%.1f\n", c2, co, nh3);
 
   snprintf(json_buf, sizeof(json_buf),
     "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f,\"p\":%.1f,"
@@ -202,7 +202,8 @@ void loop() {
 
   Serial.println("\n=== HOAN THANH 1 CHU KY ===\n");
 
-  if (seq > 4) {
+  cycles++;
+  if (cycles >= 4) {
     Serial.println("=== DA HOAN THANH 4 CHU KY MO PHONG ===");
     hien_thi("Hoan thanh!", "4 chu ky mo phong", "Xem Dashboard", "localhost:8501");
     while (1) delay(10000);

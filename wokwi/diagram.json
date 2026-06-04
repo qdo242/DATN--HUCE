@@ -4,20 +4,15 @@
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-v1", "id": "esp", "top": -100, "left": -300, "attrs": {} },
-    { "type": "wokwi-bme280", "id": "bme1", "top": -120, "left": 50, "attrs": {} },
     { "type": "board-ssd1306", "id": "oled1", "top": -130, "left": 250, "attrs": {} }
   ],
   "connections": [
     ["esp:TX0", "$serialMonitor:RX", "red", []],
     ["esp:RX0", "$serialMonitor:TX", "blue", []],
-    ["esp:21", "bme1:SDA", "green", []],
-    ["esp:22", "bme1:SCL", "yellow", []],
-    ["esp:3V3", "bme1:VCC", "red", []],
-    ["esp:GND.1", "bme1:GND", "black", []],
-    ["bme1:SDA", "oled1:SDA", "green", []],
-    ["bme1:SCL", "oled1:SCL", "yellow", []],
-    ["bme1:VCC", "oled1:VCC", "red", []],
-    ["bme1:GND", "oled1:GND", "black", []]
+    ["esp:21", "oled1:SDA", "green", []],
+    ["esp:22", "oled1:SCL", "yellow", []],
+    ["esp:3V3", "oled1:VCC", "red", []],
+    ["esp:GND.1", "oled1:GND", "black", []]
   ],
   "dependencies": {}
 }
