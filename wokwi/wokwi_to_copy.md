@@ -3,16 +3,12 @@
 ## Kiến trúc hệ thống
 
 ```
-Xi node (ESP32 + LoRa + cảm biến)
+Xi node (TTGO T-Beam: ESP32 + LoRa + BME280 + MAX30102 + GPS + OLED)
   │
   ├─ Bật nguồn → gửi Beacon "B|<Xi_ID>"
-  │
   ├─ Chờ ACK từ Y Gateway
-  │
-  ├─ Đọc cảm biến (BME280, MAX30102, GPS, MQ)
-  │
+  ├─ Đọc cảm biến (BME280, MAX30102, GPS)
   ├─ Mã hóa JSON bằng AES-128-CBC
-  │
   └─ Gửi "D|<Xi_ID>|<hex_encrypted>" qua LoRa
        │
        ▼
@@ -22,11 +18,11 @@ Y Gateway (ESP32 + LoRa + WiFi)
        ├─ Nhận data → forward HTTP POST lên Server
        │
        ▼
-Flask Server (Python)
+Flask Server (Python + SQLite)
        │
        ├─ Giải mã AES-128-CBC
        ├─ Chống replay attack (seq)
-       ├─ Lưu vào SQLite
+       └─ Lưu vào SQLite
        │
        ▼
 Streamlit Dashboard (Python + Leaflet)
@@ -47,19 +43,13 @@ python server\init_db.py
 python server\app.py
 ```
 
-Giữ terminal này chạy. Server lắng nghe tại `http://127.0.0.1:5000`.
-
----
-
 ### Terminal 2: Localtunnel
 
 ```bash
 lt --port 5000 --subdomain ten-cua-ban
 ```
 
-Lấy URL (ví dụ `https://ten-cua-ban.loca.lt`) và **cập nhật vào `SERVER_URL`** trong code Wokwi trước khi copy.
-
----
+Cập nhật URL vào `SERVER_URL` trong code Wokwi trước khi copy.
 
 ### Terminal 3: Dashboard
 
@@ -67,23 +57,53 @@ Lấy URL (ví dụ `https://ten-cua-ban.loca.lt`) và **cập nhật vào `SERV
 python -m streamlit run server\dashboard.py
 ```
 
-Mở trình duyệt tại `http://localhost:8501`.
+Mở `http://localhost:8501`.
 
 ---
 
 ## Cách chạy Wokwi
 
 1. Vào https://wokwi.com → **New Project** → **ESP32**
-2. Copy nội dung 3 file bên dưới vào Wokwi:
-   - `sketch.ino` → file `.ino` bên trái
-   - `diagram.json` → file `diagram.json`
-   - `wokwi.toml` → file `wokwi.toml`
+2. Copy 3 file bên dưới vào Wokwi
 3. Nhấn **Start Simulation**
-4. Quan sát Serial Output
+4. Xem Serial Output + OLED hiển thị trạng thái
 
-> Wokwi chạy 1 ESP32 đóng 2 vai trò Xi + Y, output serial thể hiện toàn bộ luồng giao thức.
+## `diagram.json`
 
----
+```json
+{
+  "version": 1,
+  "author": "Do Anh Quan & Ta Huy Hoang",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-v1", "id": "esp", "top": -100, "left": -300, "attrs": {} },
+    { "type": "wokwi-bme280", "id": "bme1", "top": -120, "left": 50, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": -130, "left": 250, "attrs": {} }
+  ],
+  "connections": [
+    ["esp:TX0", "$serialMonitor:RX", "red", []],
+    ["esp:RX0", "$serialMonitor:TX", "blue", []],
+    ["esp:21", "bme1:SDA", "green", []],
+    ["esp:22", "bme1:SCL", "yellow", []],
+    ["esp:3V3", "bme1:VCC", "red", []],
+    ["esp:GND.1", "bme1:GND", "black", []],
+    ["bme1:SDA", "oled1:SDA", "green", []],
+    ["bme1:SCL", "oled1:SCL", "yellow", []],
+    ["bme1:VCC", "oled1:VCC", "red", []],
+    ["bme1:GND", "oled1:GND", "black", []]
+  ],
+  "dependencies": {}
+}
+```
+
+## `wokwi.toml`
+
+```toml
+[wokwi]
+version = 1
+firmware = 'sketch.ino'
+diagram = 'diagram.json'
+```
 
 ## `sketch.ino`
 
@@ -91,23 +111,30 @@ Mở trình duyệt tại `http://localhost:8501`.
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <mbedtls/aes.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <SSD1306Wire.h>
 
-// AES-128 key (16 bytes) = "key_x_1234567890"
+// AES-128 key (16 bytes = "key_x_1234567890")
 const uint8_t NETWORK_KEY[16] = {
   0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
   0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
 };
 const char* XI_ID = "Xi_01";
 const char* Y_ID  = "Y_01";
-// THAY URL nay bang localtunnel URL cua ban
+// THAY bang localtunnel URL cua ban
 const char* SERVER_URL = "https://dirty-dingos-serve.loca.lt/receive-data";
+
+Adafruit_BME280 bme;
+SSD1306Wire oled(0x3c, 21, 22);
 
 char json_buf[512];
 uint32_t seq = 1;
 float lat = 21.00355, lon = 105.84255;
 
 // AES-128-CBC encrypt, tra ve do dai ciphertext
-// QUAN TRONG: mbedtls ghi đè bien iv => phai dung iv_copy de luu lai
+// QUAN TRONG: mbedtls ghi de bien iv => dung iv_copy de luu lai
 static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
   mbedtls_aes_context ctx;
   mbedtls_aes_init(&ctx);
@@ -120,49 +147,94 @@ static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
   memcpy(pad, pt, len);
   memcpy(iv, iv_copy, 16);
   mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, pl, iv, pad, ct);
-  memcpy(iv, iv_copy, 16);  // khoi phuc IV goc
+  memcpy(iv, iv_copy, 16);
   mbedtls_aes_free(&ctx);
   return pl;
+}
+
+// Hien thi len OLED SSD1306
+void hien_thi(const char* line1, const char* line2,
+              const char* line3, const char* line4) {
+  oled.clear();
+  oled.setFont(ArialMT_Plain_10);
+  oled.drawString(0, 0,  line1 ? line1 : "");
+  oled.drawString(0, 14, line2 ? line2 : "");
+  oled.drawString(0, 28, line3 ? line3 : "");
+  oled.drawString(0, 42, line4 ? line4 : "");
+  oled.display();
 }
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n=== MO PHONG XI -> Y -> SERVER ===");
+  Serial.println("\n==========================================");
+  Serial.println(" MO PHONG HE THONG XI -> Y -> SERVER");
+  Serial.println(" (ESP32 + BME280 + OLED + AES + WiFi)");
+  Serial.println("==========================================");
+
+  Wire.begin(21, 22);
+
+  oled.init();
+  oled.flipScreenVertically();
+  oled.setFont(ArialMT_Plain_10);
+  hien_thi("Dang khoi dong...", "", "", "");
+
+  if (!bme.begin(0x76))
+    Serial.println("[!] Loi BME280");
+  else
+    Serial.println("[+] BME280 OK");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin("Wokwi-GUEST");
   Serial.print("[WiFi] Ket noi...");
+  hien_thi("Dang ket noi WiFi...", "Wokwi-GUEST", "", "");
   int w = 0;
   while (WiFi.status() != WL_CONNECTED && w < 80) {
     delay(500); Serial.print(".");
     w++;
   }
-  if (WiFi.status() == WL_CONNECTED)
+  if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("\n[WiFi] IP: %s\n", WiFi.localIP().toString().c_str());
-  else
+    hien_thi("WiFi OK", WiFi.localIP().toString().c_str(), "", "");
+  } else {
     Serial.println("\n[WiFi] FAIL");
+    hien_thi("WiFi FAIL", "Van tiep tuc...", "", "");
+  }
+
   randomSeed(analogRead(0));
+  delay(1000);
 }
 
 void loop() {
+  char buf[32];
+
   // PHASE 1: BEACON
   Serial.println("\n--- BEACON ---");
+  hien_thi("XI: Phat Beacon", "B|Xi_01", "", "Cho ACK...");
   Serial.printf("[XI] Phat Beacon (LoRa): B|%s\n", XI_ID);
   delay(1500);
 
   // PHASE 2: ACK
   Serial.println("\n--- ACK ---");
+  hien_thi("Y: Nhan Beacon", "Tu Xi_01", "Gui ACK...", "A|Xi_01|Y_01");
   Serial.printf("[Y]  Nhan Beacon tu %s\n", XI_ID);
   Serial.printf("[Y]  Gui ACK (LoRa): A|%s|%s\n", XI_ID, Y_ID);
   delay(1000);
+  hien_thi("XI: Nhan ACK", "Tu Y_01", "", "Dang doc sensor...");
   Serial.printf("[XI] Nhan ACK tu %s\n", Y_ID);
 
-  // PHASE 3: SENSOR + AES + SEND
+  // PHASE 3: SENSOR + AES
   Serial.println("\n--- SENSOR + ENCRYPT ---");
-  float t = 28.0 + random(-30, 30) / 10.0;
-  float h = 60.0 + random(-20, 20) / 10.0;
-  float p = 1005.0 + random(30);
+
+  // Doc BME280 thuc te tu Wokwi
+  float t = bme.readTemperature();
+  float h = bme.readHumidity();
+  float p = bme.readPressure() / 100.0F;
+  if (isnan(t) || isnan(h) || isnan(p)) {
+    t = 28.0 + random(-30, 30) / 10.0;
+    h = 60.0 + random(-20, 20) / 10.0;
+    p = 1005.0 + random(30);
+  }
   float c2 = 400 + random(50);
   float co = 5.0 + random(30) / 10.0;
   float nh3 = 2.0 + random(20) / 10.0;
@@ -170,6 +242,14 @@ void loop() {
   float spo2 = hr ? 95.0 + random(50)/10.0 : 0;
   lat += 0.00005; lon += 0.00005;
   int sats = 6 + random(4);
+
+  // Hien thi sensor len OLED
+  snprintf(buf, sizeof(buf), "T:%.1fC H:%.0f%% P:%.0f", t, h, p);
+  char buf2[32];
+  snprintf(buf2, sizeof(buf2), "HR:%d SpO2:%.0f%%", hr, spo2);
+  char buf3[32];
+  snprintf(buf3, sizeof(buf3), "GPS:%.5fN %.5fE", lat, lon);
+  hien_thi("XI: Doc cam bien", buf, buf2, buf3);
 
   Serial.printf("  BME280  -> T=%.1fC  H=%.0f%%  P=%.0fhPa\n", t, h, p);
   Serial.printf("  MAX30102-> HR=%d bpm  SpO2=%.0f%%\n", hr, spo2);
@@ -187,20 +267,26 @@ void loop() {
 
   uint8_t iv[16], ct[256];
   size_t el = aes_encrypt((uint8_t*)json_buf, strlen(json_buf), ct, iv);
+
   char hex[512]; hex[0] = 0; char b[4];
   for (size_t i = 0; i < 16 + el; i++) {
     uint8_t v = i < 16 ? iv[i] : ct[i - 16];
     sprintf(b, "%02x", v); strcat(hex, b);
   }
-  Serial.printf("[XI] AES-CBC: IV + CT = %d bytes\n", 16 + el);
+
+  Serial.printf("[XI] AES-CBC: %d bytes (IV=16 + CT=%d)\n", 16 + el, el);
+  Serial.printf("[XI] Hex: %.32s...\n", hex);
 
   char data_pkt[580];
   snprintf(data_pkt, sizeof(data_pkt), "D|%s|%s", XI_ID, hex);
-  Serial.printf("[XI] Gui data (LoRa): %s\n", data_pkt);
+  Serial.printf("[XI] Gui data (LoRa): D|%s|<hex> (%d bytes)\n", XI_ID, strlen(hex));
+  hien_thi("XI: AES xong", "Gui data...", "", "");
 
   // PHASE 4: FORWARD
   Serial.println("\n--- FORWARD TO SERVER ---");
+  hien_thi("Y: Nhan data", "Chuyen tiep len", "Server...", "");
   Serial.printf("[Y]  Nhan data tu %s\n", XI_ID);
+
   if (WiFi.status() != WL_CONNECTED) {
     Serial.print("[Y]  WiFi mat ket noi, ket noi lai...");
     WiFi.reconnect();
@@ -212,22 +298,31 @@ void loop() {
     Serial.println(WiFi.status() == WL_CONNECTED ? " OK" : " FAIL");
   }
 
+  int http_code = -1;
   if (WiFi.status() == WL_CONNECTED) {
     char body[580];
     snprintf(body, sizeof(body), "{\"payload\":\"%s\"}", hex);
     HTTPClient http;
     http.begin(SERVER_URL);
     http.addHeader("Content-Type", "application/json");
-    int r = http.POST((uint8_t*)body, strlen(body));
-    Serial.printf("[SERVER] HTTP %d\n", r);
+    http_code = http.POST((uint8_t*)body, strlen(body));
+    Serial.printf("[SERVER] HTTP %d - %s\n", http_code,
+      http_code == 200 ? "THANH CONG!" : "THAT BAI");
     http.end();
   } else {
-    Serial.println("[Y]  Khong co WiFi");
+    Serial.println("[Y]  Khong co WiFi, bo qua forward");
   }
 
+  char status_line[32];
+  snprintf(status_line, sizeof(status_line), "HTTP %d", http_code);
+  hien_thi("Server:", status_line,
+    http_code == 200 ? "THANH CONG!" : "THAT BAI", "");
+
   Serial.println("\n=== HOAN THANH 1 CHU KY ===\n");
+
   if (seq > 4) {
-    Serial.println("=== HOAN THANH 4 CHU KY ===");
+    Serial.println("=== DA HOAN THANH 4 CHU KY MO PHONG ===");
+    hien_thi("Hoan thanh!", "4 chu ky mo phong", "Xem Dashboard", "localhost:8501");
     while (1) delay(10000);
   }
   delay(3000);
@@ -236,34 +331,18 @@ void loop() {
 
 ---
 
-## `diagram.json`
+## Giải thích linh kiện trong Wokwi
 
-```json
-{
-  "version": 1,
-  "author": "Do Anh Quan & Ta Huy Hoang",
-  "editor": "wokwi",
-  "parts": [
-    { "type": "board-esp32-devkit-v1", "id": "esp", "top": -100, "left": -300, "attrs": {} }
-  ],
-  "connections": [
-    ["esp:TX0", "$serialMonitor:RX", "", []],
-    ["esp:RX0", "$serialMonitor:TX", "", []]
-  ],
-  "dependencies": {}
-}
-```
+| Linh kiện | Wokwi | Ghi chú |
+|-----------|-------|---------|
+| **ESP32 DevKit** | `board-esp32-devkit-v1` | Có sẵn WiFi + I2C + UART |
+| **BME280** | `wokwi-bme280` | Đọc nhiệt độ, độ ẩm, áp suất thực qua I2C |
+| **OLED SSD1306** | `board-ssd1306` | Hiển thị trạng thái Xi/Y, cảm biến, HTTP result |
 
----
-
-## `wokwi.toml`
-
-```toml
-[wokwi]
-version = 1
-firmware = 'sketch.ino'
-diagram = 'diagram.json'
-```
+**Không có trên Wokwi** (sẽ chạy khi có hardware thật):
+- MAX30102 (nhịp tim, SpO2) — mô phỏng bằng `random()`
+- GPS NEO-M8N — mô phỏng tọa độ tăng dần
+- LoRa SX1276/SX1278 — mô phỏng qua Serial/UART
 
 ---
 
@@ -271,12 +350,11 @@ diagram = 'diagram.json'
 
 | Vấn đề | Nguyên nhân | Fix |
 |--------|-------------|-----|
-| Wokwi VS Code extension boot loop `rst:0x3` | Extension không ổn định trên máy này | Dùng Wokwi web thay thế |
-| WiFi không kết nối | Timeout ngắn + thiếu `WiFi.mode(WIFI_STA)` | Tăng timeout 80 lần + thêm `WiFi.mode(WIFI_STA)` |
+| Wokwi VS Code extension boot loop `rst:0x3` | Extension không ổn định | Dùng Wokwi web thay thế |
+| WiFi không kết nối | Timeout ngắn + thiếu `WiFi.mode(WIFI_STA)` | Tăng timeout 80 lần + thêm `WiFi.mode` |
 | HTTP -1 (kết nối thất bại) | Localtunnel chưa chạy, hoặc URL sai | Chạy `lt --port 5000`, cập nhật `SERVER_URL` |
-| HTTP 403 - Decryption Failed | mbedtls ghi đè biến `iv` sau khi encrypt | Dùng `iv_copy` để lưu IV gốc |
-| HTTP 403 - Device not found | Sai case: `XI_01` vs `Xi_01` | Đồng bộ device_id |
-| HTTP 503 | Server Flask chưa chạy | Chạy `python server/app.py` trước |
+| HTTP 403 "Decryption Failed" | mbedtls ghi đè biến `iv` sau khi encrypt | Dùng `iv_copy` để lưu IV gốc |
+| HTTP 403 "Device not found" | Sai case: `XI_01` vs `Xi_01` | Đồng bộ device_id |
 
 ---
 
