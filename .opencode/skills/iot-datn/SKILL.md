@@ -5,7 +5,7 @@ description: Use when working on the IoT security graduation project (DATN). Cov
 
 # IoT Security Graduation Project (DATN)
 
-## ⚠️ QUAN TRỌNG: ĐỌC ĐỀ TÀI TRƯỚC KHI LÀM
+## QUAN TRỌNG: ĐỌC ĐỀ TÀI TRƯỚC KHI LÀM
 
 **BẮT BUỘC:** Khi bắt đầu làm việc với project này, agent phải **đọc `docs/thesis.md`** trước.
 Sau đó kiểm tra tính chính xác: mọi code, tài liệu, cấu hình phải khớp với đề tài.
