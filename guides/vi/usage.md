@@ -1,31 +1,47 @@
-# Quy trình Vận hành Hệ thống
+# Hướng dẫn sử dụng
 
-Tài liệu này mô tả trình tự các bước thực thi để duy trì tính nhất quán của dữ liệu và các kiểm tra an ninh.
+## Kiến trúc hệ thống
 
-## 1. Khởi tạo Cơ sở dữ liệu
-Thực thi script khởi tạo để thiết lập cấu trúc bảng SQLite và các giá trị mặc định cho thiết bị.
-```powershell
-python server/init_db.py
+```
+Xi node (ESP32 + cảm biến + LoRa) --> LoRa --> Y Gateway (ESP32 + LoRa + WiFi)
+                                                  |
+                                                  v
+                                       Flask Server (Python + SQLite)
+                                                  |
+                                                  v
+                                       Streamlit Dashboard (Web Map + Biểu đồ)
 ```
 
-## 2. Triển khai Backend Server
-Khởi chạy Flask Server để mở các API endpoint tiếp nhận Payload dưới định dạng JSON.
-```powershell
-python server/app.py
-```
+## Luồng giao thức
 
-## 3. Khởi chạy Dashboard Giám sát
-Sử dụng Streamlit để truy vấn và hiển thị dữ liệu từ cơ sở dữ liệu theo thời gian thực.
-```powershell
-streamlit run server/dashboard.py
-```
+1. **Beacon**: Xi gửi `B|<Xi_ID>` qua LoRa
+2. **ACK**: Y trả lời `A|<Xi_ID>|<Y_ID>` khi nhận được Beacon
+3. **Đo lường**: Xi đọc cảm biến (nhiệt độ, độ ẩm, CO, CO2, NH3) và GPS
+4. **Mã hóa**: Xi mã hóa JSON bằng AES-128-CBC (IV ngẫu nhiên mỗi gói)
+5. **Gửi dữ liệu**: Xi gửi `D|<Xi_ID>|<hex(IV + ciphertext)>` qua LoRa
+6. **Chuyển tiếp**: Y nhận dữ liệu, gói thành `{"payload":"<hex>"}`, POST lên Server
+7. **Xử lý**: Server giải mã AES, kiểm tra seq (chống replay), lưu SQLite
+8. **Hiển thị**: Dashboard hiển thị dữ liệu lên bản đồ Leaflet và biểu đồ
 
-## 4. Kiểm thử và Mô phỏng
-Thực thi script kiểm thử để đánh giá khả năng phản hồi của hệ thống trước các kịch bản:
-- Giao dịch hợp lệ.
-- Tấn công mạo danh Gateway (Sai HMAC).
-- Tấn công phát lại (Replay Attack).
-- Tấn công sửa đổi dữ liệu (Tag mismatch).
-```powershell
+## Cách chạy
+
+Xem `setup.md` để biết các bước cài đặt.
+
+Sau khi chạy, truy cập:
+- Server API: `http://127.0.0.1:5000`
+- Dashboard: `http://localhost:8501`
+
+## Kiểm tra
+
+```bash
 python server/main_test.py
 ```
+
+## Mô phỏng Wokwi
+
+Copy 3 file lên https://wokwi.com:
+- `wokwi/sketch.ino`
+- `wokwi/diagram.json`
+- `wokwi/wokwi.toml`
+
+Mô phỏng chạy luồng đầy đủ: WiFi → Beacon → ACK → AES mã hóa → HTTP POST 200.

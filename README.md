@@ -426,7 +426,7 @@ DATN--DoAnhQuan/
 │   ├── workflow.md                  # Kiến trúc hệ thống, thiết kế chi tiết
 │   ├── threat_model.md              # Mô hình mối đe dọa
 │   ├── references.md                # Tài liệu tham khảo
-│   ├── research_aes_gcm.md          # Nghiên cứu AES-GCM
+│   ├── research_encryption_comparison.md  # So sánh XOR vs AES-CBC
 │   ├── research_anti_replay.md      # Nghiên cứu chống replay
 │   ├── research_hmac_auth.md        # Nghiên cứu HMAC authentication
 │   └── research_performance.md      # Nghiên cứu hiệu năng

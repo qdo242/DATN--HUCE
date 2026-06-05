@@ -6,12 +6,12 @@ This document is used to track the project's progress. Completed items are marke
 
 ## STAGE 1: RESEARCH AND FOUNDATION BUILDING (Weeks 1 - 4) - COMPLETED
 
-- [x] Research on Application Layer Encryption (AES-GCM) as an alternative to lower-layer solutions.
+- [x] Research on Application Layer Encryption (AES-128-CBC and XOR) as an alternative to lower-layer solutions.
 - [x] Design the overall system architecture (Node X, Node Y, Gateway, Server).
 - [x] Design an optimized binary packet structure for bandwidth efficiency.
 - [x] Implement core encryption and decryption modules using Python.
 - [x] Build a Flask Server supporting JSON and Hex string data reception.
-- [x] Implement Node-to-Node and Gateway-to-Server (HMAC) security solutions.
+- [x] Implement AES-128-CBC encryption on Xi node and decryption on Server.
 - [x] Develop a basic monitoring Dashboard.
 
 ---

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 ```powershell
-pip install pycryptodomex flask streamlit pandas plotly requests python-dotenv
+pip install -r requirements.txt
 python server/init_db.py
 ```
 
@@ -14,46 +14,28 @@ python server/app.py
 # Terminal 2: Test
 python server/main_test.py
 ```
-**Expected:** Server returns 200, Dashboard shows green data points.
+**Expected:** Server returns HTTP 200, data saved to SQLite.
 
-## Scenario 2: Full Simulation (5 cycles)
-```powershell
-python server/simulator.py
-```
-**Expected:** Each device sends 5 data cycles, all stored in SQLite.
+## Scenario 2: Wokwi Simulation
+1. Copy 3 file to https://wokwi.com (sketch.ino, diagram.json, wokwi.toml)
+2. Start simulation
+3. Observe serial output for HTTP 200
 
-## Scenario 3: Independent Connectivity Test
-```powershell
-# Start server first, then:
-python server/check_my_server.py
-```
-**Expected:** "THANH CONG! Server da giai ma duoc du lieu."
+**Expected:** Beacon -> ACK -> AES encrypt -> HTTP POST 200
 
-## Scenario 4: Wokwi-Server Matching
+## Scenario 3: Verification Script
 ```powershell
 python server/verify_wokwi.py
 ```
-**Expected:** "CHUC MUNG: Cau hinh Wokwi va Server da khớp nối hoàn hảo!"
+**Expected:** Confirms server and Wokwi config match.
 
-## Scenario 5: Internal Logic Test (GCM + HMAC)
-```powershell
-python server/self_test_logic.py
-```
-**Expected:** "Code Wokwi va Server da khớp nối thành công!"
-
-## Scenario 6: Final Pre-Delivery Check
-```powershell
-python server/final_check.py
-```
-**Expected:** "He thong da san sang 100%."
-
-## Attack Scenarios (Manual)
+## Attack Scenarios
 
 ### Wrong Key Test
-Modify `NETWORK_KEY` in test script → Server returns 403 with "Decryption Failed"
+Modify `NETWORK_KEY` in `server/app.py` -> Server returns 403 "Decryption Failed"
 
 ### Tampered Data Test
-Flip a bit in the hex payload → Decryption fails (padding error or GCM tag mismatch)
+Flip a bit in the hex payload -> Decryption fails (padding error)
 
 ### Replay Test
-Send same packet twice → Server should reject second attempt (seq check)
+Send same packet twice -> Server rejects second attempt (seq <= last_seq -> 403)

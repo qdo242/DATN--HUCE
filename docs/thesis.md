@@ -31,6 +31,15 @@
 7. Viết Code Server trung tâm nhận dữ liệu từ Y (Gateway) và tổng hợp dữ liệu, lưu Cơ sở dữ liệu.
 8. Thiết lập Map (OpenStreetMap + Leaflet) – Hiển thị vị trí các Xi và Y lên Map.
 
+## Phương án mã hóa
+
+Thuyết minh trình bày 2 phương án mã hóa:
+
+- **Cách 1 — XOR Cipher:** Rất đơn giản, chỉ 3-5 dòng code. Phù hợp để minh họa cơ chế mã hóa cơ bản.
+- **Cách 2 — AES-128-CBC:** Code dài hơn một chút nhưng vẫn đơn giản, tận dụng hardware accelerator trên ESP32 (~17 micro giây).
+
+Cả 2 cách đều là giải pháp khả thi. Đồ án chọn AES-128-CBC để triển khai chính, có tham khảo XOR cipher trong thuyết minh.
+
 ## Yêu cầu thiết kế
 
-Mạng IoT hướng đến truyền tin nhanh, đơn giản, ít tốn tài nguyên, mức độ bảo mật vừa phải.
+Mạng IoT này mục đích chính là truyền tin, yêu cầu nhanh, đơn giản nhất, ít tốn tài nguyên nhất (cho thiết bị IoT), mức độ bảo mật không quá cao. Do đó 2 phương án mã hóa trên là giải pháp khả thi có thể chọn.

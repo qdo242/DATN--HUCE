@@ -1,11 +1,9 @@
 # Testing Workflow
 
 ## Standard Test Sequence
-Run in order:
 
 ### Step 1: Clean state
 ```powershell
-# Stop all server processes
 python server/init_db.py  # Reset database
 ```
 
@@ -14,42 +12,29 @@ python server/init_db.py  # Reset database
 python server/app.py
 ```
 
-### Step 3: Run verification suite
+### Step 3: Run tests (Terminal 2)
 ```powershell
-# Terminal 2: Basic test
-python server/main_test.py
-
-# Terminal 2: Full simulation
-python server/simulator.py
-
-# Terminal 2: Self-test logic
-python server/self_test_logic.py
-
-# Terminal 2: Wokwi verification
-python server/verify_wokwi.py
-
-# Terminal 2: Final check
-python server/final_check.py
+python server/main_test.py      # Basic test (2 packets)
+python server/verify_wokwi.py   # Verify Wokwi config
 ```
 
-### Step 4: Visual verification
+### Step 4: Dashboard verification
 ```powershell
 streamlit run server/dashboard.py
 ```
 Open `http://localhost:8501` to verify:
 - Sensor charts update with new data
 - Leaflet map shows correct device positions
-- Device table lists all 3 devices
 
 ## Attack Simulation
 ```powershell
-# Run with invalid key
+# Wrong key test
 # Edit main_test.py: change NETWORK_KEY
 # Expected: 403 Decryption Failed
 
-# Run replay test
+# Replay test
 # Send same packet twice
-# Expected: Second request rejected (seq check)
+# Expected: Second request rejected (seq <= last_seq)
 ```
 
 ## Cleanup

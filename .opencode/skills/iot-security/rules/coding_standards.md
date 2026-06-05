@@ -20,9 +20,8 @@
 - Use `secrets` module for randomness (not `random`)
 - Pad plaintext with NULL bytes (`\0`) for CBC mode
 - Verify ciphertext length before decryption (`len < 32` → reject)
-- Store keys in `.env` file, never hardcode in production
+- Do an nay dung 1 Pre-Shared Key hardcode cho ca mang (thuan tien cho nghien cuu)
 
 ## Git
-- Don't commit `.env` files (secrets)
 - Don't commit `__pycache__/`
 - Don't commit `iot_security.db` (auto-generated)

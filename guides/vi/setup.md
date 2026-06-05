@@ -1,47 +1,47 @@
-# Hướng dẫn thiết lập và Kiểm thử hệ thống
+# Hướng dẫn thiết lập
 
-Tài liệu này cung cấp quy trình từng bước để triển khai và kiểm chứng hệ thống mã hóa dữ liệu IoT sau khi tải mã nguồn từ GitHub.
+## Yêu cầu
 
-## 1. Chuẩn bị môi trường
-Yêu cầu: Máy tính đã cài đặt Python 3.9+.
+- Python 3.10+
+- Git
 
-### Bước 1: Cài đặt thư viện phụ thuộc
-Mở cửa sổ dòng lệnh tại thư mục dự án và thực thi lệnh cài đặt các thư viện mật mã và giao diện:
-```powershell
-pip install pycryptodomex flask streamlit pandas plotly requests python-dotenv
-```
+## Cài đặt nhanh
 
-### Bước 2: Thiết lập cấu hình bảo mật (.env)
-Do lý do an ninh, các khóa bí mật không được lưu trữ trên Git. Bạn cần tạo một tệp tin mới tên là `.env` tại thư mục gốc của dự án với nội dung chính xác như sau:
-```text
-NODE_KEY=1234567890123456
-GATEWAY_KEY=gateway_secret_k
-```
-
-## 2. Quy trình kiểm thử (Testing)
-Để xác nhận hệ thống hoạt động chính xác, vui lòng thực hiện theo trình tự 4 bước dưới đây (mỗi bước trong một cửa sổ dòng lệnh riêng):
-
-### Bước 1: Khởi tạo Cơ sở dữ liệu
-Lệnh này sẽ tạo file `iot_security.db` để lưu trữ thông tin thiết bị và nhật ký.
-```powershell
+```bash
+git clone https://github.com/qdo242/DATN--DoAnhQuan.git
+cd DATN--DoAnhQuan
+pip install -r requirements.txt
 python server/init_db.py
 ```
 
-### Bước 2: Chạy Backend Server
-Server sẽ lắng nghe các request JSON tại cổng 5000.
-```powershell
+## Chạy hệ thống
+
+Terminal 1 — Flask Server:
+```bash
 python server/app.py
 ```
 
-### Bước 3: Chạy Dashboard giám sát
-Lệnh này sẽ khởi chạy giao diện Web. Bạn có thể xem biểu đồ tại địa chỉ `http://localhost:8501`.
-```powershell
+Terminal 2 — Dashboard:
+```bash
 streamlit run server/dashboard.py
 ```
 
-### Bước 4: Thực thi kịch bản mô phỏng tấn công
-Chạy script này để gửi dữ liệu giả lập và các kịch bản tấn công (Sai HMAC, Replay Attack).
-```powershell
-python server/main_test.py
+Mở `http://localhost:8501` trên trình duyệt.
+
+## Mô phỏng Wokwi
+
+1. Vào https://wokwi.com → New Project → ESP32
+2. Copy 3 file: `wokwi/sketch.ino`, `wokwi/diagram.json`, `wokwi/wokwi.toml`
+3. Nhấn Start Simulation
+
+Để expose server ra internet (cho Wokwi):
+```bash
+npm install -g localtunnel
+lt --port 5000 --subdomain ten-cua-ban
 ```
-*Kết quả:* Quan sát Dashboard để thấy các bản tin "An toàn" (màu xanh) và "Cảnh báo bảo mật" (màu đỏ).
+
+Cập nhật `SERVER_URL` trong `wokwi/sketch.ino` với URL localtunnel.
+
+## Ghi chú mã hóa
+
+Hệ thống dùng một Pre-Shared Key `key_x_1234567890` (16 byte) cho AES-128-CBC. Key được hardcode trong cả firmware ESP32 và Python server. Không cần file `.env`.

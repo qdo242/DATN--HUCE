@@ -31,7 +31,5 @@
 - [ ] ESP32 encryption < 20us (with hardware accelerator)
 
 ## Pre-Delivery
-- [ ] `python server/final_check.py` passes both Node X and Node Y tests
 - [ ] `python server/verify_wokwi.py` confirms Wokwi-Server matching
 - [ ] Dashboard shows correct device positions on Leaflet map
-- [ ] No hardcoded secrets in production-ready code

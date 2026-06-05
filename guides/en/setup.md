@@ -1,47 +1,47 @@
-# Setup and Testing Guide
+# Setup Guide
 
-This document provides a step-by-step procedure to deploy and verify the IoT data encryption system after cloning the repository.
+## Requirements
 
-## 1. Environment Preparation
-Requirement: Python 3.9+ installed.
+- Python 3.10+
+- Git
 
-### Step 1: Install Dependencies
-Open your terminal in the project directory and run the following command to install cryptographic and UI libraries:
-```powershell
-pip install pycryptodomex flask streamlit pandas plotly requests python-dotenv
-```
+## Quick Setup
 
-### Step 2: Configure Security Settings (.env)
-Secret keys are excluded from version control. You must create a new file named `.env` in the project root with the following content:
-```text
-NODE_KEY=1234567890123456
-GATEWAY_KEY=gateway_secret_k
-```
-
-## 2. Testing Procedure
-To verify that the system is functioning correctly, follow these 4 steps in order (each in a separate terminal window):
-
-### Step 1: Initialize the Database
-This command creates the `iot_security.db` file to store device info and logs.
-```powershell
+```bash
+git clone https://github.com/qdo242/DATN--DoAnhQuan.git
+cd DATN--DoAnhQuan
+pip install -r requirements.txt
 python server/init_db.py
 ```
 
-### Step 2: Start the Backend Server
-The server listens for JSON requests on port 5000.
-```powershell
+## Run the System
+
+Terminal 1 — Flask Server:
+```bash
 python server/app.py
 ```
 
-### Step 3: Launch the Monitoring Dashboard
-This starts the Web interface. You can view the analytics at `http://localhost:8501`.
-```powershell
+Terminal 2 — Dashboard:
+```bash
 streamlit run server/dashboard.py
 ```
 
-### Step 4: Run Simulation and Security Tests
-Execute this script to send simulated data and attack scenarios (Invalid HMAC, Replay Attacks).
-```powershell
-python server/main_test.py
+Open `http://localhost:8501` in your browser.
+
+## Wokwi Simulation
+
+1. Go to https://wokwi.com → New Project → ESP32
+2. Copy 3 files: `wokwi/sketch.ino`, `wokwi/diagram.json`, `wokwi/wokwi.toml`
+3. Press Start Simulation
+
+To expose the server to the internet (for Wokwi):
+```bash
+npm install -g localtunnel
+lt --port 5000 --subdomain your-name
 ```
-*Expected Outcome:* Observe the Dashboard for "Safe" messages (green) and "Security Alerts" (red).
+
+Update `SERVER_URL` in `wokwi/sketch.ino` with the localtunnel URL.
+
+## Encryption Note
+
+This project uses a single Pre-Shared Key `key_x_1234567890` (16 bytes) for AES-128-CBC encryption. The key is hardcoded in both the ESP32 firmware and the Python server. No `.env` file required.

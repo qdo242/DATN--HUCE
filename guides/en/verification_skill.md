@@ -1,30 +1,28 @@
-# Verification and Validation Methodology
+# Verification and Validation
 
-This document outlines the technical procedures to ensure system stability, security, and accuracy before real-world deployment.
+## 1. Test Flow
 
-## 1. Multi-point Verification Workflow
+### 1.1. Unit Test
+- **Objective:** Verify AES-128-CBC encryption (ESP32) and decryption (Server) produce correct results.
+- **Method:** Use `server/main_test.py` to send sample encrypted packets and check HTTP 200 response.
 
-### 1.1. Unit Testing
-- **Objective:** Verify the correctness of individual encryption and decryption functions.
-- **Execution:** Check AES-GCM output against sample vectors to ensure alignment with theoretical cryptographic results.
+### 1.2. Integration Test
+- **Objective:** Ensure full flow works: Xi → LoRa (simulated) → Y → HTTP POST → Server.
+- **Method:** Run `main_test.py` — it sends 2 test packets and verifies server response.
 
-### 1.2. Integration Testing
-- **Objective:** Ensure seamless coordination between Node, Gateway, and Server.
-- **Execution:** Utilize `main_test.py` to simulate the full data flow from encryption at the Node to storage in the Server database.
+### 1.3. Security Tests
+- **Replay Attack:** Server checks `seq > last_seq`. Resending same packet returns HTTP 403.
+- **Wrong Key:** Decryption fails → HTTP 403 "Decryption Failed".
+- **Wrong Device ID:** Server checks device exists in DB → HTTP 403 "Device not found".
 
-### 1.3. Empirical Security Testing
-- **Objective:** Demonstrate defensive capabilities against target attack models.
-- **Execution Scenarios:**
-    - **Gateway Impersonation:** Modify Gateway ID or HMAC signature to confirm Server rejection.
-    - **Replay Attack:** Resend captured valid packets to confirm the Sequence Number mechanism.
-    - **Data Tampering:** Flip bits in the Ciphertext to confirm that the AES-GCM layer detects integrity violations (MAC check failure).
+## 2. Wokwi Simulation
 
-## 2. Performance Evaluation Criteria
-- **Processing Latency:** Measure execution time at the Server from reception to decryption completion. Target: < 50ms per packet.
-- **Database Stability:** Test continuous data logging and Telemetry data consistency.
+Copy 3 files to https://wokwi.com, start simulation. Observe serial output for:
+- WiFi connection
+- Beacon → ACK handshake
+- AES encryption
+- HTTP POST result (expect 200)
 
-## 3. Environment Cleanup Procedure
-Every test run must start from a "clean state":
-1. Terminate old processes occupying the Database file.
-2. Reset device status to `active`.
-3. Reset `last_seq` to -1.
+## 3. Cleanup
+
+Delete `iot_security.db` and run `python server/init_db.py` to reset.

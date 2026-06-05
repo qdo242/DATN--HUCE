@@ -1,26 +1,47 @@
 # Usage Guide
 
-Follow this sequence to ensure the system operates correctly:
+## System Architecture
 
-### Step 1: Initialize Database (First time only)
-```powershell
-python server/init_db.py
+```
+Xi node (ESP32 + sensors + LoRa) --> LoRa --> Y Gateway (ESP32 + LoRa + WiFi)
+                                                  |
+                                                  v
+                                       Flask Server (Python + SQLite)
+                                                  |
+                                                  v
+                                       Streamlit Dashboard (Web Map + Charts)
 ```
 
-### Step 2: Start the Backend Server
-Open a new terminal and run:
-```powershell
-python server/app.py
-```
+## Protocol Flow
 
-### Step 3: Start the Monitoring Dashboard
-Open another terminal and run:
-```powershell
-streamlit run server/dashboard.py
-```
+1. **Beacon**: Xi sends `B|<Xi_ID>` over LoRa
+2. **ACK**: Y replies `A|<Xi_ID>|<Y_ID>` when it receives the Beacon
+3. **Sensing**: Xi reads sensors (temperature, humidity, CO, CO2, NH3) and GPS
+4. **Encryption**: Xi encrypts JSON payload with AES-128-CBC (random IV each packet)
+5. **Data**: Xi sends `D|<Xi_ID>|<hex(IV + ciphertext)>` over LoRa
+6. **Forward**: Y receives data, wraps as `{"payload":"<hex>"}`, POSTs to Server
+7. **Process**: Server decrypts AES, checks seq number (anti-replay), saves to SQLite
+8. **Display**: Dashboard shows data on Leaflet map and sensor charts
 
-### Step 4: Run Security Tests
-Open a final terminal to simulate device data transmissions and security attacks:
-```powershell
+## How to Run
+
+See `setup.md` for installation steps.
+
+After running, access:
+- Server API: `http://127.0.0.1:5000`
+- Dashboard: `http://localhost:8501`
+
+## Test
+
+```bash
 python server/main_test.py
 ```
+
+## Wokwi Simulation
+
+Copy 3 files to https://wokwi.com:
+- `wokwi/sketch.ino`
+- `wokwi/diagram.json`
+- `wokwi/wokwi.toml`
+
+The simulation demonstrates the full flow: WiFi → Beacon → ACK → AES encrypt → HTTP POST 200.

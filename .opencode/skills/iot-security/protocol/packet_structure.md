@@ -9,7 +9,7 @@
 
 Payload sent as hex string: `(iv + ciphertext).hex()`
 
-## Planned (AES-128-GCM + HMAC)
+## Tham khao (AES-128-GCM + HMAC — Khong ap dung trong do an)
 
 | Offset | Field | Length | Description |
 |--------|-------|--------|-------------|
@@ -18,6 +18,8 @@ Payload sent as hex string: `(iv + ciphertext).hex()`
 | 16 | **Ciphertext** | Variable | AES-128-GCM encrypted data |
 | End-48 | **Auth Tag** | 16 bytes | GCM authentication tag |
 | End-32 | **Gateway HMAC** | 32 bytes | HMAC-SHA256 signature |
+
+Ghi chu: Day la phuong an tham khao mo rong. Trong do an nay chi su dung AES-128-CBC, khong dung GCM hay HMAC.
 
 ## Plaintext JSON Format
 ```json

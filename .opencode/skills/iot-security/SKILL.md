@@ -1,6 +1,6 @@
 ---
 name: iot-security
-description: "Use this skill for the IoT Security graduation thesis project (DATN) by Do Anh Quan and Ta Huy Hoang. The project builds a secure IoT communication system between sensor nodes (Xi), a mobile gateway (Y), and a Flask backend server. Trigger when working on: AES-128-CBC/GCM encryption, LoRa Beacon/ACK handshake protocol, Flask server API, SQLite database, Streamlit dashboard with Leaflet map, Wokwi ESP32 simulation, or any security testing (HMAC, anti-replay, tampering). Also trigger when the user references any file under server/, wokwi/, docs/, guides/, or plan/."
+description: "Use this skill for the IoT Security graduation thesis project (DATN) by Do Anh Quan and Ta Huy Hoang. The project builds a secure IoT communication system between sensor nodes (Xi), a mobile gateway (Y), and a Flask backend server. Trigger when working on: AES-128-CBC encryption, XOR cipher, LoRa Beacon/ACK handshake protocol, Flask server API, SQLite database, Streamlit dashboard with Leaflet map, Wokwi ESP32 simulation, or any security testing (anti-replay, decryption errors). Also trigger when the user references any file under server/, wokwi/, docs/, guides/, or plan/."
 license: MIT
 ---
 
@@ -13,7 +13,7 @@ license: MIT
 
 ## Quick Start
 ```powershell
-pip install pycryptodomex flask streamlit pandas plotly requests python-dotenv
+pip install -r requirements.txt
 python server/init_db.py
 python server/app.py          # Terminal 1
 streamlit run server/dashboard.py  # Terminal 2
@@ -45,7 +45,7 @@ python server/main_test.py    # Terminal 3
 | `server/xor_cipher.py` | XOR cipher tham khảo (3 dòng code) |
 | `server/dashboard.py` | Streamlit + Leaflet map |
 | `wokwi/sketch.ino` | ESP32 firmware (AES-CBC) |
-| `docs/research_aes_gcm.md` | So sánh XOR vs AES-CBC |
+| `docs/research_encryption_comparison.md` | So sánh XOR vs AES-CBC |
 
 ### Test Commands
 ```powershell
