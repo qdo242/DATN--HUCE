@@ -497,9 +497,3 @@ DATN--DoAnhQuan/
 6. Xây dựng Flask Server nhận JSON từ Gateway.
 7. Viết code Server tổng hợp và lưu SQLite.
 8. Thiết lập Web Map (OpenStreetMap + Leaflet) hiển thị vị trí thiết bị.
-
----
-
-## Giấy phép
-
-Đồ án tốt nghiệp — Trường Đại học XXX (thông tin bổ sung sau).
