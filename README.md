@@ -440,7 +440,7 @@ DATN--DoAnhQuan/
 │
 ├── .opencode/
 │   └── skills/
-│       ├── iot-datn/SKILL.md        # Skill cho opencode agent (chứa context dự án)
+│       ├── iot-datn/SKILL.md        # Cấu hình context dự án cho opencode
 │       └── iot-security/...         # Skill bảo mật IoT (có sẵn)
 │
 ├── requirements.txt                 # Danh sách thư viện Python
@@ -503,7 +503,3 @@ DATN--DoAnhQuan/
 ## Giấy phép
 
 Đồ án tốt nghiệp — Trường Đại học XXX (thông tin bổ sung sau).
-
----
-
-*Dự án được phát triển với sự hỗ trợ của opencode (AI coding assistant).*
