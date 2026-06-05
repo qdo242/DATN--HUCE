@@ -353,7 +353,7 @@ Server thực hiện:
 
 ### Giải thích lựa chọn bảo mật
 
-> Yêu cầu của thầy: "Mạng IoT này mục đích chính là truyền tin, yêu cầu nhanh, đơn giản nhất, ít tốn tài nguyên nhất, mức độ bảo mật không quá cao."
+Mục tiêu thiết kế: truyền tin nhanh, đơn giản, ít tốn tài nguyên, mức bảo mật vừa phải.
 
 AES-128-CBC được chọn vì:
 1. Có hardware accelerator trên ESP32 (mbedtls), rất nhanh và ít tốn RAM.

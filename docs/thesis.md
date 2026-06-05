@@ -31,6 +31,6 @@
 7. Viết Code Server trung tâm nhận dữ liệu từ Y (Gateway) và tổng hợp dữ liệu, lưu Cơ sở dữ liệu.
 8. Thiết lập Map (OpenStreetMap + Leaflet) – Hiển thị vị trí các Xi và Y lên Map.
 
-## Yêu cầu của thầy
+## Yêu cầu thiết kế
 
-> "Mạng IoT này mục đích chính là truyền tin, yêu cầu nhanh, đơn giản nhất, ít tốn tài nguyên nhất, mức độ bảo mật không quá cao."
+Mạng IoT hướng đến truyền tin nhanh, đơn giản, ít tốn tài nguyên, mức độ bảo mật vừa phải.

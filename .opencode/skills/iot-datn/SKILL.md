@@ -17,7 +17,7 @@ Nếu phát hiện sai lệch (thiếu tính năng, sai kiến trúc, sai giao t
 **Architecture:** Xi sensor nodes → LoRa → Y Gateway → WiFi/4G → Flask Server → Streamlit Dashboard
 
 ## Key Design Decisions
-- **One Pre-Shared Key** for the whole network (teacher's requirement: "mạng IoT này mục đích chính là truyền tin, yêu cầu nhanh, đơn giản nhất / ít tốn tài nguyên nhất, mức độ bảo mật không quá cao")
+- **One Pre-Shared Key** for the whole network (design goal: fast, simple, low-resource, moderate security)
 - **AES-128-CBC** with hardware acceleration on ESP32 (~17-18µs), random IV per packet, zero-padding
 - **Custom LoRa P2P protocol** (text-based: `B|`, `A|`, `D|`) instead of LoRaWAN
 - **Sequence number** anti-replay: server checks `seq > last_seq`
