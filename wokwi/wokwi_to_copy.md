@@ -1,4 +1,6 @@
-# Hướng dẫn chạy mô phỏng Wokwi + Server + Dashboard
+# Đề tài: Xây dựng giải pháp truyền tin bảo mật giữa các thiết bị IoT
+
+Wokwi simulation của toàn bộ luồng: Xi node → LoRa → Y Gateway → Server → Dashboard.
 
 ## Kiến trúc hệ thống
 

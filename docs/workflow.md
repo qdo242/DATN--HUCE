@@ -1,4 +1,6 @@
-# Kiến trúc Hệ thống và Giải pháp Bảo mật IoT
+# Đề tài: Xây dựng giải pháp truyền tin bảo mật giữa các thiết bị IoT
+
+Kiến trúc, giao thức, mã hóa, và cơ chế chống tấn công của hệ thống.
 
 ## 1. Kiến trúc Hệ thống
 
@@ -89,7 +91,7 @@ hex(IV 16 bytes + AES-128-CBC ciphertext)
 ### devices
 | Column | Type | Mô tả |
 |--------|------|-------|
-| device_id | TEXT PRIMARY KEY | Tên thiết bị (Xi_01, Xi_02, Y_GW, TBEAM_01) |
+| device_id | TEXT PRIMARY KEY | Tên thiết bị (Xi_01, Y_01) |
 | network_key | TEXT | Pre-shared key |
 | last_seq | INTEGER | Sequence cuối cùng (chống replay) |
 | latitude | REAL | Tọa độ mặc định |
