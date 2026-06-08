@@ -5,6 +5,7 @@ data_log.json
 .idea/
 .env
 skills/
-!.opencode/skills/
+.opencode/skills/
+iot_security.db
 *.docx
 *.log

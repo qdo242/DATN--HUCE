@@ -3,56 +3,59 @@ import sqlite3
 import json
 import secrets
 from Cryptodome.Cipher import AES
-from Cryptodome.Hash import HMAC, SHA256
 from app import app, get_db_connection
+
+NETWORK_KEY = b'key_x_1234567890'
 
 def test_full_system_logic():
     print("=== BAT DAU KIEM DINH LOGIC HE THONG WOKWI -> SERVER ===\n")
-    
-    # 1. Chuan bi thong tin (Khop voi sketch.ino va init_db.py)
-    node_id = "NODE_X_HEALTH"
-    node_key = "key_x_1234567890" # 16 bytes
-    gw_key = "gw_secret_000001"
-    
-    # 2. Mo phong ESP32 mbedtls: Tao Plaintext JSON
+
+    node_id = "Xi_01"
+
+    # 1. Tao Plaintext JSON (giong sketch.ino)
     data = {
         "id": node_id,
-        "temp": 28.5,
-        "bpm": 75,
+        "t": 28.5,
+        "h": 60.0,
+        "p": 1005.0,
+        "hr": 75,
+        "spo2": 97,
+        "co2": 420,
+        "co": 5.0,
+        "nh3": 2.0,
         "lat": 21.0045,
         "lon": 105.8433,
+        "alt": 10,
+        "sats": 8,
+        "gw": "Y_01",
         "seq": 50
     }
     plaintext = json.dumps(data).encode('utf-8')
-    
-    # 3. Mo phong ESP32 mbedtls: AES-128-GCM
-    nonce = secrets.token_bytes(12)
-    cipher = AES.new(node_key.encode('utf-8'), AES.MODE_GCM, nonce=nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    
-    # 4. Mo phong Gateway Layer: [GW_ID(4)] + [Nonce(12)] + [Cipher] + [Tag(16)]
-    packet = b"GW01" + nonce + ciphertext + tag
-    
-    # 5. Mo phong Gateway Layer: HMAC-SHA256
-    h = HMAC.new(gw_key.encode('utf-8'), digestmod=SHA256)
-    h.update(packet)
-    hmac_sig = h.digest()
-    
-    # 6. Gói tin cuoi cung dang Hex (Cach ESP32 gui len)
-    final_hex_payload = (packet + hmac_sig).hex()
-    print(f"[ESP32] Da tao goi tin ma hoa (Hex): {final_hex_payload[:50]}...\n")
 
-    # 7. Dung Flask Test Client de kiem tra Server ma khong can mo port
+    # 2. AES-128-CBC (giong sketch.ino)
+    padded_len = len(plaintext)
+    if padded_len % 16 != 0:
+        padded_len = ((padded_len // 16) + 1) * 16
+    padded_plaintext = plaintext.ljust(padded_len, b'\0')
+
+    iv = secrets.token_bytes(16)
+    cipher = AES.new(NETWORK_KEY, AES.MODE_CBC, iv=iv)
+    ciphertext = cipher.encrypt(padded_plaintext)
+
+    # 3. Dong goi: [16 byte IV] + [Ciphertext] -> hex
+    final_hex_payload = (iv + ciphertext).hex()
+    print(f"[Xi] Da tao goi tin ma hoa (Hex): {final_hex_payload[:50]}...\n")
+
+    # 4. Dung Flask Test Client de kiem tra Server
     with app.test_client() as client:
         print("[Server] Dang tiep nhan va giai ma...")
         response = client.post('/receive-data', json={"payload": final_hex_payload})
-        
+
         print(f"[Server] Ket qua phan hoi: {response.status_code}")
         print(f"[Server] Du lieu tra ve: {response.get_json()}")
-        
+
         if response.status_code == 200:
-            print("\n=> KET LUAN: Code Wokwi va Server da khớp nối thành công!")
-            # Kiem tra xem du lieu da vao DB chua
+            print("\n=> KET LUAN: Code Wokwi va Server da khop noi thanh cong!")
             conn = get_db_connection()
             log = conn.execute('SELECT * FROM telemetry WHERE device_id = ? ORDER BY id DESC LIMIT 1', (node_id,)).fetchone()
             conn.close()

@@ -170,7 +170,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n==========================================");
-  Serial.println(" MO PHONG HE THONG XI -> Y -> SERVER");
+  Serial.println(" MÔ PHỎNG HỆ THỐNG XI -> Y -> SERVER");
   Serial.println(" (ESP32 + BME280 + OLED + AES + WiFi)");
   Serial.println("==========================================");
 
@@ -178,13 +178,13 @@ void setup() {
   oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   oled.clearDisplay();
   oled.display();
-  hien_thi("Dang khoi dong...", "", "", "");
+  hien_thi("Đang khởi động...", "", "", "");
   Serial.println("[+] OLED OK");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin("Wokwi-GUEST");
-  Serial.print("[WiFi] Ket noi...");
-  hien_thi("Dang ket noi WiFi...", "Wokwi-GUEST", "", "");
+  Serial.print("[WiFi] Kết nối...");
+  hien_thi("Đang kết nối WiFi...", "Wokwi-GUEST", "", "");
   int w = 0;
   while (WiFi.status() != WL_CONNECTED && w < 80) {
     delay(500); Serial.print(".");
@@ -195,7 +195,7 @@ void setup() {
     hien_thi("WiFi OK", WiFi.localIP().toString().c_str(), "", "");
   } else {
     Serial.println("\n[WiFi] FAIL");
-    hien_thi("WiFi FAIL", "Van tiep tuc...", "", "");
+    hien_thi("WiFi FAIL", "Vẫn tiếp tục...", "", "");
   }
 
   randomSeed(analogRead(0));
@@ -208,23 +208,23 @@ void loop() {
 
   // PHASE 1: BEACON
   Serial.println("\n--- BEACON ---");
-  hien_thi("XI: Phat Beacon", "B|Xi_01", "", "Cho ACK...");
-  Serial.printf("[XI] Phat Beacon (LoRa): B|%s\n", XI_ID);
+  hien_thi("XI: Phát Beacon", "B|Xi_01", "", "Chờ ACK...");
+  Serial.printf("[XI] Phát Beacon (LoRa): B|%s\n", XI_ID);
   delay(1500);
 
   // PHASE 2: ACK
   Serial.println("\n--- ACK ---");
-  hien_thi("Y: Nhan Beacon", "Tu Xi_01", "Gui ACK...", "A|Xi_01|Y_01");
-  Serial.printf("[Y]  Nhan Beacon tu %s\n", XI_ID);
-  Serial.printf("[Y]  Gui ACK (LoRa): A|%s|%s\n", XI_ID, Y_ID);
+  hien_thi("Y: Nhận Beacon", "Từ Xi_01", "Gửi ACK...", "A|Xi_01|Y_01");
+  Serial.printf("[Y]  Nhận Beacon từ %s\n", XI_ID);
+  Serial.printf("[Y]  Gửi ACK (LoRa): A|%s|%s\n", XI_ID, Y_ID);
   delay(1000);
-  hien_thi("XI: Nhan ACK", "Tu Y_01", "", "Dang doc sensor...");
-  Serial.printf("[XI] Nhan ACK tu %s\n", Y_ID);
+  hien_thi("XI: Nhận ACK", "Từ Y_01", "", "Đang đọc sensor...");
+  Serial.printf("[XI] Nhận ACK từ %s\n", Y_ID);
 
   // PHASE 3: SENSOR + AES
   Serial.println("\n--- SENSOR + ENCRYPT ---");
 
-  // Tat ca cam bien deu mo phong bang random()
+  // Tất cả cảm biến đều mô phỏng bằng random()
   float t = 28.0 + random(-30, 30) / 10.0;
   float h = 60.0 + random(-20, 20) / 10.0;
   float p = 1005.0 + random(30);
@@ -236,13 +236,13 @@ void loop() {
   lat += 0.00005; lon += 0.00005;
   int sats = 6 + random(4);
 
-  // Hien thi sensor len OLED
+  // Hiển thị sensor lên OLED
   snprintf(buf, sizeof(buf), "T:%.1fC H:%.0f%% P:%.0f", t, h, p);
   char buf2[32];
   snprintf(buf2, sizeof(buf2), "HR:%d SpO2:%.0f%%", hr, spo2);
   char buf3[32];
   snprintf(buf3, sizeof(buf3), "GPS:%.5fN %.5fE", lat, lon);
-  hien_thi("XI: Doc cam bien", buf, buf2, buf3);
+  hien_thi("XI: Đọc cảm biến", buf, buf2, buf3);
 
   Serial.printf("  SIM: T=%.1fC H=%.0f%% P=%.0fhPa\n", t, h, p);
   Serial.printf("  SIM: HR=%d SpO2=%.0f%%\n", hr, spo2);
@@ -272,16 +272,16 @@ void loop() {
 
   char data_pkt[580];
   snprintf(data_pkt, sizeof(data_pkt), "D|%s|%s", XI_ID, hex);
-  Serial.printf("[XI] Gui data (LoRa): D|%s|<hex> (%d bytes)\n", XI_ID, strlen(hex));
-  hien_thi("XI: AES xong", "Gui data...", "", "");
+  Serial.printf("[XI] Gửi data (LoRa): D|%s|<hex> (%d bytes)\n", XI_ID, strlen(hex));
+  hien_thi("XI: AES xong", "Gửi data...", "", "");
 
   // PHASE 4: FORWARD
   Serial.println("\n--- FORWARD TO SERVER ---");
-  hien_thi("Y: Nhan data", "Chuyen tiep len", "Server...", "");
-  Serial.printf("[Y]  Nhan data tu %s\n", XI_ID);
+  hien_thi("Y: Nhận data", "Chuyển tiếp lên", "Server...", "");
+  Serial.printf("[Y]  Nhận data từ %s\n", XI_ID);
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.print("[Y]  WiFi mat ket noi, ket noi lai...");
+    Serial.print("[Y]  WiFi mất kết nối, kết nối lại...");
     WiFi.reconnect();
     int r = 0;
     while (WiFi.status() != WL_CONNECTED && r < 30) {
@@ -300,23 +300,23 @@ void loop() {
     http.addHeader("Content-Type", "application/json");
     http_code = http.POST((uint8_t*)body, strlen(body));
     Serial.printf("[SERVER] HTTP %d - %s\n", http_code,
-      http_code == 200 ? "THANH CONG!" : "THAT BAI");
+      http_code == 200 ? "THÀNH CÔNG!" : "THẤT BẠI");
     http.end();
   } else {
-    Serial.println("[Y]  Khong co WiFi, bo qua forward");
+    Serial.println("[Y]  Không có WiFi, bỏ qua forward");
   }
 
   char status_line[32];
   snprintf(status_line, sizeof(status_line), "HTTP %d", http_code);
   hien_thi("Server:", status_line,
-    http_code == 200 ? "THANH CONG!" : "THAT BAI", "");
+    http_code == 200 ? "THÀNH CÔNG!" : "THẤT BẠI", "");
 
-  Serial.println("\n=== HOAN THANH 1 CHU KY ===\n");
+  Serial.println("\n=== HOÀN THÀNH 1 CHU KỲ ===\n");
 
   cycles++;
   if (cycles >= 4) {
-    Serial.println("=== DA HOAN THANH 4 CHU KY MO PHONG ===");
-    hien_thi("Hoan thanh!", "4 chu ky mo phong", "Xem Dashboard", "localhost:8501");
+    Serial.println("=== ĐÃ HOÀN THÀNH 4 CHU KỲ MÔ PHỎNG ===");
+    hien_thi("Hoàn thành!", "4 chu kỳ mô phỏng", "Xem Dashboard", "localhost:8501");
     while (1) delay(10000);
   }
   delay(3000);

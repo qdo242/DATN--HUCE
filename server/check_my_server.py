@@ -5,9 +5,8 @@ from Cryptodome.Cipher import AES
 
 # THONG TIN KHOP TUYET DOI
 NODE_ID = "IOT_NODE_01"
-# KHOA DUNG CHUNG TOAN MANG (16 byte cho AES-128)
-NETWORK_KEY = bytes([0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
-                     0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C])
+# KHOA DUNG CHUNG TOAN MANG (16 byte = "key_x_1234567890")
+NETWORK_KEY = b'key_x_1234567890'
 URL = "http://127.0.0.1:5000/receive-data"
 
 def run_test():
@@ -15,11 +14,11 @@ def run_test():
     
     # 1. Tao du lieu cam bien
     data = {
-        "id": NODE_ID, 
-        "temp": 26.5, 
-        "lat": 21.0045, 
-        "lon": 105.8433, 
-        "seq": 500 # Dung so lon de tranh loi Replay
+        "id": NODE_ID,
+        "t": 26.5,
+        "lat": 21.0045,
+        "lon": 105.8433,
+        "seq": 500
     }
     plaintext = json.dumps(data).encode('utf-8')
     

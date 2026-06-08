@@ -2,42 +2,45 @@ import requests
 import sqlite3
 import os
 from Cryptodome.Cipher import AES
-from Cryptodome.Hash import HMAC, SHA256
 import json
 import secrets
 
+NETWORK_KEY = b'key_x_1234567890'
 SERVER_URL = "http://127.0.0.1:5000/receive-data"
 
-def simulate_wokwi_cpp_logic(node_id, node_key, gw_key):
-    """Mo phong chinh xac thuat toan C++ mbedtls trong sketch.ino"""
+def simulate_wokwi_cpp_logic(node_id):
+    """Mo phong chinh xac AES-128-CBC trong sketch.ino"""
     print(f"--- Dang kiem tra Node: {node_id} ---")
-    
+
     # 1. Tao data giong ESP32
     data = {
         "id": node_id,
-        "temp": 25.5,
-        "bpm": 80,
+        "t": 25.5,
+        "h": 60.0,
+        "co2": 420,
+        "co": 5.0,
+        "nh3": 2.0,
         "lat": 21.0045,
+        "lon": 105.8433,
         "seq": 999
     }
     plaintext = json.dumps(data).encode('utf-8')
-    
-    # 2. Ma hoa AES-128-GCM
-    nonce = secrets.token_bytes(12)
-    cipher = AES.new(node_key.encode('utf-8'), AES.MODE_GCM, nonce=nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    
-    # 3. Dong goi Gateway Layer (GW01 + Nonce + Cipher + Tag)
-    packet = b"GW01" + nonce + ciphertext + tag
-    
-    # 4. Ky HMAC-SHA256
-    h = HMAC.new(gw_key.encode('utf-8'), digestmod=SHA256)
-    h.update(packet)
-    hmac_sig = h.digest()
-    
-    # 5. Gui len Server (Hex format)
-    final_payload = (packet + hmac_sig).hex()
-    
+
+    # 2. Pad NULL bytes (giong sketch.ino: memset 0)
+    padded_len = len(plaintext)
+    if padded_len % 16 != 0:
+        padded_len = ((padded_len // 16) + 1) * 16
+    padded_plaintext = plaintext.ljust(padded_len, b'\0')
+
+    # 3. Ma hoa AES-128-CBC
+    iv = secrets.token_bytes(16)
+    cipher = AES.new(NETWORK_KEY, AES.MODE_CBC, iv=iv)
+    ciphertext = cipher.encrypt(padded_plaintext)
+
+    # 4. Dong goi hex: [IV 16 byte] + [Ciphertext]
+    final_payload = (iv + ciphertext).hex()
+
+    # 5. Gui len Server
     try:
         r = requests.post(SERVER_URL, json={"payload": final_payload})
         print(f"Ket qua: {r.status_code} - {r.json()}\n")
@@ -48,12 +51,10 @@ def simulate_wokwi_cpp_logic(node_id, node_key, gw_key):
 
 if __name__ == "__main__":
     print("=== BAT DAU KIEM DINH TU DONG CAU HINH WOKWI-SERVER ===\n")
-    
-    # Kiem tra ca 2 loai Node
-    success_x = simulate_wokwi_cpp_logic("NODE_X_HEALTH", "key_x_1234567890", "gw_secret_000001")
-    success_y = simulate_wokwi_cpp_logic("NODE_Y_ENV",    "key_y_0987654321", "gw_secret_000001")
-    
-    if success_x and success_y:
-        print("=> CHUC MUNG: Cau hinh Wokwi va Server da khớp nối hoàn hảo!")
+
+    success = simulate_wokwi_cpp_logic("Xi_01")
+
+    if success:
+        print("=> CHUC MUNG: Cau hinh Wokwi va Server da khop noi hoan hao!")
     else:
-        print("=> CANH BAO: Co loi trong viec khớp nối cau hinh.")
+        print("=> CANH BAO: Co loi trong viec khop noi cau hinh.")
