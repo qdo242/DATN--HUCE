@@ -78,7 +78,7 @@ def simulate_xi_to_y_to_server(device_id, start_lat, start_lon):
 
 if __name__ == "__main__":
     print("=== MO PHONG LUONG XI -> Y (GATEWAY) -> SERVER ===\n")
-    simulate_xi_to_y_to_server("Xi_01", 21.00355, 105.84255)
+    simulate_xi_to_y_to_server("Xi_01", 21.84470, 104.09700)
     print("\n" + "="*50)
-    simulate_xi_to_y_to_server("Xi_02", 21.00555, 105.84455)
+    simulate_xi_to_y_to_server("Xi_02", 21.84550, 104.09820)
     print("\n=== KET THUC ===")

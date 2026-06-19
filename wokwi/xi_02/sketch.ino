@@ -1,14 +1,3 @@
-/*
- * ============================================================
- *  WOKWI SIMULATION (Combined: Xi_01 + Xi_02 alternating)
- * ============================================================
- *  NOTE: Day la phien ban cu (1 project, luan phien 2 node).
- *  Phien ban moi dung 2 project Wokwi rieng:
- *    - wokwi/xi_01/sketch.ino  (Xi_01 standalone)
- *    - wokwi/xi_02/sketch.ino  (Xi_02 standalone)
- *  Xem huong dan trong wokwi/wokwi_to_copy.md
- * ============================================================
- */
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <mbedtls/aes.h>
@@ -20,8 +9,8 @@ const uint8_t NETWORK_KEY[16] = {
   0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
   0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
 };
-const char* XI_IDS[] = {"Xi_01", "Xi_02"};
-const char* Y_ID     = "Y_01";
+const char* XI_ID = "Xi_02";
+const char* Y_ID  = "Y_01";
 const char* SERVER_URL = "https://tasty-roses-unite.loca.lt/receive-data";
 
 #define OLED_RESET -1
@@ -30,9 +19,7 @@ Adafruit_SSD1306 oled(128, 64, &Wire, OLED_RESET);
 char json_buf[512];
 uint32_t seq;
 uint32_t cycles = 0;
-float xi_lat[2] = {21.84470, 21.84550};
-float xi_lon[2] = {104.09700, 104.09820};
-int   xi_idx = 0;
+float lat = 21.84550, lon = 104.09820;
 
 static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
   mbedtls_aes_context ctx;
@@ -51,7 +38,8 @@ static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
   return pl;
 }
 
-void hien_thi(const char* line1, const char* line2, const char* line3, const char* line4) {
+void hien_thi(const char* line1, const char* line2,
+              const char* line3, const char* line4) {
   oled.clearDisplay();
   oled.setTextColor(WHITE);
   oled.setTextSize(1);
@@ -70,7 +58,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n==========================================");
-  Serial.println(" MO PHONG HE THONG XI -> Y -> SERVER");
+  Serial.println(" XI_02 - IoT DATN Simulation");
   Serial.println(" (ESP32 + BME280 + OLED + AES + WiFi)");
   Serial.println("==========================================");
 
@@ -83,7 +71,7 @@ void setup() {
   }
   oled.clearDisplay();
   oled.display();
-  hien_thi("Dang khoi dong...", "", "", "");
+  hien_thi("Xi_02 dang khoi dong...", "", "", "");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin("Wokwi-GUEST");
@@ -103,49 +91,44 @@ void setup() {
   }
 
   randomSeed(analogRead(0));
-  seq = 1000 + random(9000);
+  seq = 5000 + random(9000);
   delay(1000);
 }
 
 void loop() {
   char buf[32];
-  xi_idx = cycles % 2;
-  const char* XI_ID = XI_IDS[xi_idx];
-
-  float lat = xi_lat[xi_idx];
-  float lon = xi_lon[xi_idx];
 
   // ===== PHASE 1: BEACON =====
   Serial.printf("\n--- LAN %d: %s ---\n", cycles + 1, XI_ID);
-  hien_thi(XI_ID, "Phat Beacon...", "", "Cho ACK...");
+  hien_thi("Xi_02: Phat Beacon", "B|Xi_02", "", "Cho ACK...");
   Serial.printf("[%s] Phat Beacon (LoRa): B|%s\n", XI_ID, XI_ID);
   delay(1500);
 
   // ===== PHASE 2: ACK =====
-  hien_thi("Y: Nhan Beacon", XI_ID, "Gui ACK...", "A|...|Y_01");
+  hien_thi("Y: Nhan Beacon", "Tu Xi_02", "Gui ACK...", "A|Xi_02|Y_01");
   Serial.printf("[Y]  Nhan Beacon tu %s, gui ACK\n", XI_ID);
   delay(1000);
-  hien_thi(XI_ID, "Nhan ACK tu Y_01", "", "Dang doc sensor...");
+  hien_thi("Xi_02: Nhan ACK", "Tu Y_01", "", "Dang doc sensor...");
   Serial.printf("[%s] Nhan ACK tu %s\n", XI_ID, Y_ID);
 
   // ===== PHASE 3: SENSOR + AES =====
-  float t = 28.0 + random(-30, 30) / 10.0;
-  float h = 60.0 + random(-20, 20) / 10.0;
-  float p = 1005.0 + random(30);
-  float c2 = 400 + random(50);
-  float co = 5.0 + random(30) / 10.0;
-  float nh3 = 2.0 + random(20) / 10.0;
-  int   hr = random(2) ? 65 + random(20) : 0;
-  float spo2 = hr ? 95.0 + random(50)/10.0 : 0;
-  lat += 0.00005 * (xi_idx + 1); lon += 0.00005 * (xi_idx + 1);
-  int sats = 6 + random(4);
+  float t = 26.5 + random(-30, 30) / 10.0;
+  float h = 65.0 + random(-20, 20) / 10.0;
+  float p = 1008.0 + random(30);
+  float c2 = 420 + random(50);
+  float co = 4.5 + random(30) / 10.0;
+  float nh3 = 2.5 + random(20) / 10.0;
+  int   hr = random(2) ? 70 + random(15) : 0;
+  float spo2 = hr ? 96.0 + random(40)/10.0 : 0;
+  lat += 0.00003; lon += 0.00003;
+  int sats = 5 + random(4);
 
   snprintf(buf, sizeof(buf), "T:%.1fC H:%.0f%% P:%.0f", t, h, p);
   char buf2[32];
   snprintf(buf2, sizeof(buf2), "HR:%d SpO2:%.0f%%", hr, spo2);
   char buf3[32];
   snprintf(buf3, sizeof(buf3), "GPS:%.5fN %.5fE", lat, lon);
-  hien_thi(XI_ID, buf, buf2, buf3);
+  hien_thi("Xi_02: Doc cam bien", buf, buf2, buf3);
 
   Serial.printf("  T=%.1fC H=%.0f%% P=%.0f\n", t, h, p);
   Serial.printf("  HR=%d SpO2=%.0f%% GPS=%.5fN %.5fE\n", hr, spo2, lat, lon);
@@ -170,7 +153,7 @@ void loop() {
   }
 
   Serial.printf("[%s] AES-CBC: %d bytes Hex: %.32s...\n", XI_ID, 16 + el, hex);
-  hien_thi(XI_ID, "AES xong, gui data...", "", "");
+  hien_thi("Xi_02: AES xong", "Gui data...", "", "");
 
   // ===== PHASE 4: FORWARD =====
   if (WiFi.status() != WL_CONNECTED) {
@@ -206,8 +189,8 @@ void loop() {
   cycles++;
   if (cycles >= 6) {
     hien_thi("Hoan thanh!", "6 chu ky mo phong", "Xem Dashboard", "localhost:8501");
-    Serial.printf("=== DA HOAN THANH %d CHU KY (Xi_01 + Xi_02) ===\n", cycles);
+    Serial.printf("=== DA HOAN THANH %d CHU KY (%s) ===\n", cycles, XI_ID);
     while (1) delay(10000);
   }
-  delay(3000);
+  delay(4000);
 }

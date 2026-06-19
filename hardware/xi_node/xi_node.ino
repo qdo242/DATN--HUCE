@@ -2,24 +2,40 @@
  * ============================================================
  *  XI NODE - TTGO T-Beam (ESP32 + LoRa SX1276 + GPS + Sensors)
  * ============================================================
- *  Thiet bi: TTGO T-Beam
+ *  Thiet bi: TTGO T-Beam (V07 / V08+ / V1.x)
  *  Cam bien: GY-BME280 (I2C 0x76), MAX30102 (I2C 0x57),
  *            GPS NEO-M8N (UART2), OLED SSD1306 (I2C 0x3C)
  *
  *  Giao thuc:
- *    1. Phat Beacon  (LoRa) "B|XI_01"
- *    2. Cho ACK tu Y (LoRa, timeout 3s) "A|XI_01|Y_01"
- *    3. Gui du lieu ma hoa AES-CBC (LoRa) "D|XI_01|<hex>"
+ *    1. Phat Beacon  (LoRa) "B|<Xi_ID>"
+ *    2. Cho ACK tu Y  (LoRa, timeout 3s) "A|<Xi_ID>|<Y_ID>"
+ *    3. Gui du lieu ma hoa AES-CBC (LoRa) "D|<Xi_ID>|<hex>"
+ *
+ *  Wiring xac nhan tu HW reference [11][12][13]:
+ *    BME280: VIN->3V3, GND->GND, SCL->GPIO22, SDA->GPIO21
+ *    OLED:   VCC->3V3, GND->GND, SDA->GPIO21, SCL->GPIO22, addr 0x3C
+ *    LoRa:   SCK=5, MISO=19, MOSI=27, CS=18, RST=23, DIO0=26
+ *    GPS:    TX->GPIO12 (ESP32 RX2), RX->GPIO15 (ESP32 TX2)
+ *    MAX30102: I2C 0x57, 3.3V (5V se gay hong)
+ *
+ *  Hardware revision notes:
+ *    - V07 va truoc: GPS pins khac, khong co AXP202X
+ *    - V08/V09/V10/V1.0+: co AXP202X (power management), can khoi tao
+ *    - I2C clock co the len 800kHz (SSD1306 patch) [12]
  *
  *  Cai dat thu vien (Arduino IDE):
- *    - "Adafruit BME280 Library"
+ *    - "Adafruit BME280 Library" (Adafruit) [16]
  *    - "Adafruit Unified Sensor"
- *    - "SparkFun MAX3010x ... Sensor Library"
+ *    - "SparkFun MAX3010x ... Sensor Library" (SparkFun) [18]
  *    - "TinyGPSPlus"
  *    - "ESP8266 and ESP32 OLED driver for SSD1306 displays"
+ *      hoac "U8g2"
  *    - "LoRa" by Sandeep Mistry
+ *    - Neu HW V08+: "AXP202X_Library" (lewisxhe)
  *
  *  Board: Arduino IDE -> Tools -> Board -> ESP32 Arduino -> "T-Beam"
+ *         hoac PlatformIO: board_build.variant = tbeam
+ *         Xem them: LilyGo-LoRa-Series/utilities.h [11]
  * ============================================================
  */
 #include <Wire.h>
@@ -39,7 +55,7 @@ const uint8_t NETWORK_KEY[16] = {
   0x6B, 0x65, 0x79, 0x5F, 0x78, 0x5F, 0x31, 0x32,
   0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
 };
-const char* XI_ID   = "Xi_01";
+const char* XI_ID   = "Xi_01";       // Doi thanh Xi_02 cho node thu 2
 const float LORA_FREQ = 868E6;      // 868 MHz (SX1276)
 const long  LORA_TX_POWER = 17;     // dBm
 const int   LORA_CS  = 18;
@@ -48,6 +64,7 @@ const int   LORA_DIO = 26;
 const int   GPS_RX   = 12;          // T-BEAM: GPS TX -> ESP32 RX2
 const int   GPS_TX   = 15;          // T-BEAM: GPS RX <- ESP32 TX2
 
+// I2C: SSD1306 OLED 0x3C, BME280 0x76, MAX30102 0x57
 Adafruit_BME280 bme;
 MAX30105 max30102;
 TinyGPSPlus gps;
@@ -84,7 +101,7 @@ struct SensorData {
   int   hr; float spo2;
   float lat, lon, alt;
   int   sats;
-  float co2, co, nh3;    // simulated (can bo sung MQ sau)
+  float co2, co, nh3;
 };
 
 bool doc_bme280(SensorData& d) {
@@ -98,7 +115,7 @@ bool doc_max30102(SensorData& d) {
   const byte RATE_SIZE = 4;
   byte rates[RATE_SIZE], rateSpot = 0;
   long lastBeat = 0;
-  int bpm = 0; float spo2 = 0;
+  int bpm = 0; float spo2_val = 0;
   unsigned long start = millis();
   int samples = 0;
   while (samples < 25 && (millis() - start) < 5000) {
@@ -119,21 +136,22 @@ bool doc_max30102(SensorData& d) {
       long red = max30102.getRed();
       if (ir > 0 && red > 0) {
         float ratio = (float)red / ir;
-        spo2 = 104.0 - 17.0 * ratio;
-        if (spo2 > 100) spo2 = 100;
-        if (spo2 < 70) spo2 = 0;
+        spo2_val = 104.0 - 17.0 * ratio;
+        if (spo2_val > 100) spo2_val = 100;
+        if (spo2_val < 70) spo2_val = 0;
       }
       samples++;
     }
     delay(20);
   }
   d.hr   = (bpm > 20 && bpm < 220) ? bpm : 0;
-  d.spo2 = (spo2 > 0) ? spo2 : 0;
+  d.spo2 = (spo2_val > 0) ? spo2_val : 0;
   return (d.hr > 0);
 }
 
+// GPS non-blocking: doc lien tuc, khong blocking loop
 void doc_gps(SensorData& d) {
-  d.lat = 21.00355; d.lon = 105.84255; d.alt = 0; d.sats = 0;
+  d.lat = 21.84470; d.lon = 104.09700; d.alt = 0; d.sats = 0;
   unsigned long start = millis();
   while (millis() - start < 3000) {
     while (Serial2.available()) gps.encode(Serial2.read());
@@ -152,7 +170,7 @@ void doc_sensors(SensorData& d) {
   doc_bme280(d);
   doc_max30102(d);
   doc_gps(d);
-  d.co2 = 400 + random(50);   // simulated
+  d.co2 = 400 + random(50);
   d.co  = 5.0 + random(30)/10.0;
   d.nh3 = 2.0 + random(20)/10.0;
 }
@@ -219,7 +237,6 @@ bool protocol_xi(const SensorData& d) {
     return false;
   }
 
-  // Kiem tra ACK: "A|XI_01|Y_01"
   char target[16], gw[16];
   if (sscanf(buf, "A|%15[^|]|%15s", target, gw) != 2 ||
       strcmp(target, XI_ID) != 0) {
@@ -276,18 +293,19 @@ void setup() {
   Serial.printf("ID: %s\n", XI_ID);
 
   Wire.begin(21, 22);
+  Wire.setClock(400000);  // I2C 400kHz (co the len 800kHz neu patch SSD1306)
 
-  // OLED
+  // OLED SSD1306 / SH1106
   oled.init(); oled.flipScreenVertically();
   hien_thi("Khoi dong...", "", "", "");
 
-  // BME280
+  // BME280 (I2C 0x76 hoac 0x77)
   if (!bme.begin(0x76))
     Serial.println("[!] Loi BME280");
   else
     Serial.println("[+] BME280 OK");
 
-  // MAX30102
+  // MAX30102 (I2C 0x57, 3.3V)
   if (!max30102.begin(Wire, I2C_SPEED_STANDARD))
     Serial.println("[!] Loi MAX30102");
   else {
@@ -295,11 +313,11 @@ void setup() {
     Serial.println("[+] MAX30102 OK");
   }
 
-  // GPS
+  // GPS UART2
   Serial2.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
   Serial.println("[+] GPS UART2 OK");
 
-  // LoRa (T-BEAM specific SPI pins)
+  // LoRa (T-Beam specific SPI pins)
   SPI.begin(5, 19, 27, 18);
   LoRa.setPins(LORA_CS, LORA_RST, LORA_DIO);
   if (!LoRa.begin(LORA_FREQ)) {
@@ -308,7 +326,7 @@ void setup() {
     while (1);
   }
   LoRa.setTxPower(LORA_TX_POWER);
-  LoRa.setSpreadingFactor(12);     // slow but long range
+  LoRa.setSpreadingFactor(12);
   LoRa.setCodingRate4(5);
   LoRa.setSignalBandwidth(125E3);
   Serial.printf("[+] LoRa OK @ %.1f MHz\n", LORA_FREQ / 1E6);
@@ -325,5 +343,5 @@ void loop() {
   SensorData d = { 0 };
   doc_sensors(d);
   protocol_xi(d);
-  delay(5000);    // moi 5s mot chu ky
+  delay(5000);
 }

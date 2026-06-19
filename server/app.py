@@ -4,6 +4,8 @@ from flask import Flask, request, jsonify
 from Cryptodome.Cipher import AES
 import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(filename='server_debug.log', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
@@ -12,6 +14,7 @@ app = Flask(__name__)
 DB_NAME = os.path.join(os.path.dirname(__file__), '..', 'iot_security.db')
 
 NETWORK_KEY = b'key_x_1234567890'
+executor = ThreadPoolExecutor(max_workers=4)
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -90,6 +93,7 @@ def log_telemetry(data, status):
 
 @app.route('/receive-data', methods=['POST'])
 def receive_data():
+    t_start = time.time()
     json_input = request.get_json()
     if not json_input or 'payload' not in json_input:
         return jsonify({"status": "error", "message": "Missing payload"}), 400
@@ -98,24 +102,34 @@ def receive_data():
         payload = json_input['payload']
         logging.debug(f"Received payload len={len(payload)} first50={payload[:50]}")
         raw_data = bytes.fromhex(payload)
+
+        t1 = time.time()
         data, error = verify_and_decrypt(raw_data)
+        t_decrypt = (time.time() - t1) * 1000
 
         if error:
             print(f"[!] Loi giai ma: {error}")
             logging.debug(f"Decrypt error: {error}")
             return jsonify({"status": "error", "reason": error}), 403
 
+        t2 = time.time()
         ok, msg = check_seq(data.get('id'), data.get('seq'))
+        t_seq = (time.time() - t2) * 1000
+
         if not ok:
-            log_telemetry(data, f"Canh bao: {msg}")
+            executor.submit(log_telemetry, data, f"Canh bao: {msg}")
             print(f"[!] {msg}")
             return jsonify({"status": "error", "reason": msg}), 403
 
+        t3 = time.time()
         if data.get('seq') is not None:
             update_seq(data.get('id'), data.get('seq'))
+        executor.submit(log_telemetry, data, "An toan")
+        t_log = (time.time() - t3) * 1000
 
-        log_telemetry(data, "An toan")
-        print(f"[+] Da giai ma tu {data.get('id')}: t={data.get('t')} h={data.get('h')} lat={data.get('lat')}")
+        t_total = (time.time() - t_start) * 1000
+        print(f"[+] {data.get('id')}: decrypt={t_decrypt:.1f}ms seq={t_seq:.1f}ms log={t_log:.1f}ms total={t_total:.1f}ms")
+
         return jsonify({"status": "success", "device": data.get('id')}), 200
 
     except Exception as e:
@@ -123,4 +137,4 @@ def receive_data():
 
 if __name__ == "__main__":
     print("=== SERVER IOT XI->Y->SERVER DANG CHAY ===")
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, threaded=True)

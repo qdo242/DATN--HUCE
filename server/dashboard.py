@@ -9,7 +9,7 @@ import os
 st.set_page_config(page_title="Dashboard Giam sat Xi-Y", layout="wide")
 DB_NAME = os.path.join(os.path.dirname(__file__), '..', 'iot_security.db')
 
-st.title("He thong quan ly va giam sat IoT (Mo hinh Xi -> Y -> Server)")
+st.title("He thong quan ly va giam sat IoT (Xi_01 + Xi_02 -> Y -> Server)")
 
 tabs = st.tabs(["Bieu do cam bien", "Ban do Web (Leaflet)", "Du lieu thiet bi"])
 
@@ -45,18 +45,13 @@ with tabs[0]:
 
 with tabs[1]:
     st.write("### Vi tri thuc te cua thiet bi Xi va Y tren ban do")
-    m = folium.Map(location=[21.0045, 105.8433], zoom_start=16)
+    m = folium.Map(location=[21.8449, 104.0975], zoom_start=15)
 
     df_map = load_data("""
         SELECT t.device_id, t.latitude, t.longitude, d.description
         FROM telemetry t
         JOIN devices d ON t.device_id = d.device_id
         WHERE t.timestamp = (SELECT MAX(t2.timestamp) FROM telemetry t2 WHERE t2.device_id = t.device_id)
-        UNION
-        SELECT device_id, latitude, longitude, description
-        FROM devices
-        WHERE latitude IS NOT NULL
-          AND device_id NOT IN (SELECT DISTINCT device_id FROM telemetry)
     """)
 
     if not df_map.empty:
@@ -74,7 +69,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.write("### Danh sach cac thiet bi trong mang")
-    df_devices = load_data("SELECT device_id, description, latitude, longitude FROM devices")
+    df_devices = load_data("SELECT DISTINCT t.device_id, d.description, t.latitude, t.longitude FROM telemetry t LEFT JOIN devices d ON t.device_id = d.device_id ORDER BY t.timestamp DESC")
     st.table(df_devices)
 
     st.write("### Du lieu telemetry moi nhat")

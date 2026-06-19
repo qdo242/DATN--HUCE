@@ -41,8 +41,9 @@ def init_db():
 
     common_key = "key_x_1234567890"
     devices_data = [
-        ('Xi_01', common_key, -1, 21.00355, 105.84255, 'Node cam bien Xi_01'),
-        ('Y_01',  common_key, -1, 21.00455, 105.84355, 'Gateway Y_01')
+        ('Xi_01', common_key, -1, 21.84470, 104.09700, 'Node cam bien Xi_01 - Mù Cang Chải'),
+        ('Xi_02', common_key, -1, 21.84550, 104.09820, 'Node cam bien Xi_02 - Mù Cang Chải'),
+        ('Y_01',  common_key, -1, 21.84510, 104.09750, 'Gateway Y_01 - Mù Cang Chải')
     ]
 
     cursor.executemany(
@@ -53,7 +54,7 @@ def init_db():
     conn.commit()
     conn.close()
     print("Da khoi tao database thanh cong.")
-    print("2 thiet bi: Xi_01, Y_01")
+    print("3 thiet bi: Xi_01, Xi_02, Y_01")
 
 if __name__ == "__main__":
     init_db()
