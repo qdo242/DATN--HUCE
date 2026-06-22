@@ -11,7 +11,7 @@ DB_NAME = os.path.join(os.path.dirname(__file__), '..', 'iot_security.db')
 
 st.title("He thong quan ly va giam sat IoT (Xi_01 + Xi_02 -> Y -> Server)")
 
-tabs = st.tabs(["Bieu do cam bien", "Ban do Web (Leaflet)", "Du lieu thiet bi"])
+tabs = st.tabs(["Bieu do cam bien", "Ban do Web (Leaflet)", "Du lieu thiet bi", "Hieu nang"])
 
 def load_data(query):
     conn = sqlite3.connect(DB_NAME)
@@ -80,6 +80,33 @@ with tabs[2]:
     df_gps = load_data("SELECT device_id, latitude, longitude, altitude, satellites, timestamp FROM telemetry WHERE latitude != 0 ORDER BY timestamp DESC LIMIT 5")
     if not df_gps.empty:
         st.dataframe(df_gps)
+
+with tabs[3]:
+    st.write("### Hieu nang xu ly (benchmark)")
+    df_bench = load_data("SELECT * FROM benchmark ORDER BY id DESC LIMIT 50")
+    if not df_bench.empty:
+        st.dataframe(df_bench[['device_id', 'decrypt_ms', 'seq_ms', 'log_ms', 'total_ms', 'status', 'timestamp']])
+
+        st.write("#### Thong ke hieu nang theo thiet bi")
+        stats = df_bench.groupby('device_id').agg(
+            tong_so_lan=('id', 'count'),
+            decrypt_tb=('decrypt_ms', 'mean'),
+            seq_tb=('seq_ms', 'mean'),
+            log_tb=('log_ms', 'mean'),
+            total_tb=('total_ms', 'mean'),
+            total_max=('total_ms', 'max')
+        ).round(1)
+        st.dataframe(stats)
+
+        st.write("#### Bieu do thoi gian xu ly (30 request gan nhat)")
+        chart = df_bench.head(30).set_index('id')[['decrypt_ms', 'seq_ms', 'log_ms', 'total_ms']]
+        st.line_chart(chart)
+
+        st.write("#### Ti le thanh cong / that bai")
+        suc_rate = df_bench['status'].value_counts()
+        st.bar_chart(suc_rate)
+    else:
+        st.info("Dang cho du lieu benchmark tu server...")
 
 time.sleep(10)
 st.rerun()

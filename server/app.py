@@ -49,47 +49,82 @@ def check_seq(device_id, seq):
     return True, None
 
 def update_seq(device_id, seq):
-    conn = get_db_connection()
-    conn.execute('UPDATE devices SET last_seq = ? WHERE device_id = ?', (seq, device_id))
-    conn.commit()
-    conn.close()
+    for attempt in range(3):
+        try:
+            conn = get_db_connection()
+            conn.execute('UPDATE devices SET last_seq = ? WHERE device_id = ?', (seq, device_id))
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 2:
+                time.sleep(0.1)
+                continue
+            logging.error(f"DB update_seq failed: {e}")
+            break
 
 def log_telemetry(data, status):
-    conn = get_db_connection()
     device_id = data.get('id', 'UNKNOWN')
+    for attempt in range(3):
+        try:
+            conn = get_db_connection()
+            lat, lon = data.get('lat'), data.get('lon')
+            if lat is None or lon is None:
+                device = conn.execute(
+                    'SELECT latitude, longitude FROM devices WHERE device_id = ?',
+                    (device_id,)
+                ).fetchone()
+                if device:
+                    lat, lon = device['latitude'], device['longitude']
+            conn.execute('''
+                INSERT INTO telemetry
+                    (device_id, temperature, humidity, pressure,
+                     co2, co, nh3,
+                     heart_rate, spo2, altitude, satellites,
+                     latitude, longitude, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                device_id, data.get('t'), data.get('h'), data.get('p'),
+                data.get('co2'), data.get('co'), data.get('nh3'),
+                data.get('hr'), data.get('spo2'),
+                data.get('alt'), data.get('sats'),
+                lat, lon, status
+            ))
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 2:
+                time.sleep(0.1)
+                continue
+            logging.error(f"DB write failed: {e}")
+            break
 
-    lat, lon = data.get('lat'), data.get('lon')
-    if lat is None or lon is None:
-        device = conn.execute(
-            'SELECT latitude, longitude FROM devices WHERE device_id = ?',
-            (device_id,)
-        ).fetchone()
-        if device:
-            lat, lon = device['latitude'], device['longitude']
+def save_benchmark(device_id, decrypt_ms, seq_ms, log_ms, total_ms, status):
+    for attempt in range(3):
+        try:
+            conn = get_db_connection()
+            conn.execute('''
+                INSERT INTO benchmark (device_id, decrypt_ms, seq_ms, log_ms, total_ms, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (device_id, decrypt_ms, seq_ms, log_ms, total_ms, status))
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 2:
+                time.sleep(0.1)
+                continue
+            break
 
-    conn.execute('''
-        INSERT INTO telemetry
-            (device_id, temperature, humidity, pressure,
-             co2, co, nh3,
-             heart_rate, spo2, altitude, satellites,
-             latitude, longitude, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        device_id,
-        data.get('t'),
-        data.get('h'),
-        data.get('p'),
-        data.get('co2'),
-        data.get('co'),
-        data.get('nh3'),
-        data.get('hr'),
-        data.get('spo2'),
-        data.get('alt'),
-        data.get('sats'),
-        lat, lon, status
-    ))
-    conn.commit()
+@app.route('/benchmark', methods=['GET'])
+def get_benchmark():
+    conn = get_db_connection()
+    rows = conn.execute('''
+        SELECT * FROM benchmark ORDER BY id DESC LIMIT 100
+    ''').fetchall()
     conn.close()
+    return jsonify([dict(r) for r in rows])
 
 @app.route('/receive-data', methods=['POST'])
 def receive_data():
@@ -118,6 +153,7 @@ def receive_data():
 
         if not ok:
             executor.submit(log_telemetry, data, f"Canh bao: {msg}")
+            executor.submit(save_benchmark, data.get('id'), t_decrypt, t_seq, 0, 0, "FAIL")
             print(f"[!] {msg}")
             return jsonify({"status": "error", "reason": msg}), 403
 
@@ -129,6 +165,7 @@ def receive_data():
 
         t_total = (time.time() - t_start) * 1000
         print(f"[+] {data.get('id')}: decrypt={t_decrypt:.1f}ms seq={t_seq:.1f}ms log={t_log:.1f}ms total={t_total:.1f}ms")
+        executor.submit(save_benchmark, data.get('id'), t_decrypt, t_seq, t_log, t_total, "OK")
 
         return jsonify({"status": "success", "device": data.get('id')}), 200
 

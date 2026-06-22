@@ -39,6 +39,17 @@ def init_db():
         FOREIGN KEY (device_id) REFERENCES devices (device_id)
     )''')
 
+    cursor.execute('''CREATE TABLE benchmark (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT,
+        decrypt_ms REAL,
+        seq_ms REAL,
+        log_ms REAL,
+        total_ms REAL,
+        status TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     common_key = "key_x_1234567890"
     devices_data = [
         ('Xi_01', common_key, -1, 21.84470, 104.09700, 'Node cam bien Xi_01 - Mù Cang Chải'),
