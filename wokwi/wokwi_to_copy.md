@@ -5,11 +5,11 @@ Wokwi simulation của toàn bộ luồng: Xi node → LoRa → Y Gateway → Se
 ## Kiến trúc hệ thống
 
 ```
-Xi node (TTGO T-Beam: ESP32 + LoRa + BME280 + MAX30102 + GPS + OLED)
+Xi node (TTGO T-Beam: ESP32 + LoRa + BME280 + GPS + OLED)
   │
   ├─ Bật nguồn → gửi Beacon "B|<Xi_ID>"
   ├─ Chờ ACK từ Y Gateway
-  ├─ Đọc cảm biến (BME280, MAX30102, GPS)
+  ├─ Đọc cảm biến (BME280, GPS)
   ├─ Mã hóa JSON bằng AES-128-CBC
   └─ Gửi "D|<Xi_ID>|<hex_encrypted>" qua LoRa
        │
@@ -139,7 +139,6 @@ Cả 2 đều dùng chung:
 | **OLED SSD1306** | `board-ssd1306` | Hiển thị trạng thái Xi/Y, cảm biến, HTTP result |
 
 **Không có trên Wokwi** (sẽ chạy khi có hardware thật):
-- MAX30102 (nhịp tim, SpO2) — mô phỏng bằng `random()`
 - GPS NEO-M8N — mô phỏng tọa độ tăng dần
 - LoRa SX1276/SX1278 — mô phỏng qua Serial/UART
 

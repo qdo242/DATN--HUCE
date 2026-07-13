@@ -80,13 +80,12 @@ def log_telemetry(data, status):
                 INSERT INTO telemetry
                     (device_id, temperature, humidity, pressure,
                      co2, co, nh3,
-                     heart_rate, spo2, altitude, satellites,
+                     altitude, satellites,
                      latitude, longitude, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 device_id, data.get('t'), data.get('h'), data.get('p'),
                 data.get('co2'), data.get('co'), data.get('nh3'),
-                data.get('hr'), data.get('spo2'),
                 data.get('alt'), data.get('sats'),
                 lat, lon, status
             ))

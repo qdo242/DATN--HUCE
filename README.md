@@ -101,7 +101,6 @@ Khu vực hiện trường (các Xi đã được rải sẵn)
 | TTGO T-Beam (ESP32 + LoRa SX1276 + GPS NEO-M8N + OLED) | 1 | Xi node | Đã có |
 | ESP32 DevKit + LoRa SX1278 (433 MHz) | 1 | Y Gateway | Chưa có |
 | BME280 | 1 | Cảm biến nhiệt độ, độ ẩm, áp suất | Đã có |
-| MAX30102 | 1 | Cảm biến nhịp tim, SpO2 | Đã có |
 | OLED SSD1306 (I2C 0x3C) | 1 | Hiển thị trạng thái | Đã có |
 
 > **Lưu ý:** TTGO T-Beam đã tích hợp sẵn ESP32, LoRa SX1276, GPS NEO-M8N và OLED. Chưa có ESP32 thứ hai và module LoRa rời để làm Y Gateway. Khi chưa có phần cứng, sử dụng mô phỏng Wokwi.
@@ -245,7 +244,6 @@ Trên OLED bạn sẽ thấy lần lượt các trạng thái: trạng thái WiF
 ### Lưu ý khi mô phỏng
 
 - **BME280**: Wokwi không hỗ trợ cảm biến BME280 qua I2C (Wokwi chỉ hỗ trợ SPI). Do đó tất cả giá trị cảm biến được mô phỏng bằng hàm `random()`.
-- **MAX30102**: Không có trên Wokwi, mô phỏng bằng random.
 - **GPS NEO-M8N**: Không có trên Wokwi, tọa độ mô phỏng tăng dần qua mỗi chu kỳ.
 - **LoRa**: Không có module LoRa trên Wokwi, toàn bộ giao thức Beacon/ACK/Data được mô phỏng qua Serial (in ra màn hình).
 
@@ -302,8 +300,6 @@ Giao thức sử dụng văn bản thuần (plain text) trên LoRa, định dạ
   "t": 28.5,
   "h": 65.2,
   "p": 1008.0,
-  "hr": 75,
-  "spo2": 96.0,
   "co2": 420,
   "co": 5.1,
   "nh3": 2.3,
@@ -402,7 +398,7 @@ DATN--DoAnhQuan/
 │
 ├── hardware/                        # Firmware ESP32 cho phần cứng thật
 │   ├── xi_node/
-│   │   └── xi_node.ino              # Firmware Xi node (T-Beam: BME280, MAX30102, GPS, LoRa, AES)
+│   │   └── xi_node.ino              # Firmware Xi node (T-Beam: BME280, GPS, LoRa, AES)
 │   └── y_gateway/
 │       └── y_gateway.ino            # Firmware Y Gateway (ESP32 + LoRa + WiFi forwarder)
 │

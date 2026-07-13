@@ -18,8 +18,6 @@ def test_full_system_logic():
         "t": 28.5,
         "h": 60.0,
         "p": 1005.0,
-        "hr": 75,
-        "spo2": 97,
         "co2": 420,
         "co": 5.0,
         "nh3": 2.0,
@@ -60,7 +58,7 @@ def test_full_system_logic():
             log = conn.execute('SELECT * FROM telemetry WHERE device_id = ? ORDER BY id DESC LIMIT 1', (node_id,)).fetchone()
             conn.close()
             if log:
-                print(f"[*] Xac nhan Database da luu: Nhiet do={log['temperature']}, Nhip tim={log['heart_rate']}")
+                print(f"[*] Xac nhan Database da luu: Nhiet do={log['temperature']}")
         else:
             print("\n=> KET LUAN: Co loi trong logic giai ma.")
 

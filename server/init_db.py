@@ -29,8 +29,6 @@ def init_db():
         co2 REAL,
         co REAL,
         nh3 REAL,
-        heart_rate INTEGER,
-        spo2 REAL,
         altitude REAL,
         satellites INTEGER,
         latitude REAL,

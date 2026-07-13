@@ -22,7 +22,7 @@
 
 | File | Vai trò | Nội dung chính |
 |------|---------|----------------|
-| `hardware/xi_node/xi_node.ino` | Firmware T-Beam | AES-CBC encrypt, LoRa Beacon/ACK/Data, đọc BME280+MAX30102+GPS |
+| `hardware/xi_node/xi_node.ino` | Firmware T-Beam | AES-CBC encrypt, LoRa Beacon/ACK/Data, đọc BME280+GPS |
 | `hardware/y_gateway/y_gateway.ino` | Firmware Y Gateway | LoRa receive → HTTP POST lên Server |
 | `wokwi/sketch.ino` | Mô phỏng Wokwi | Giả lập Xi node (random sensor, AES-CBC, HTTP POST) |
 | `server/app.py` | Flask Server | AES-CBC decrypt, seq check, SQLite write, ThreadPoolExecutor |
@@ -59,7 +59,7 @@
 
 - **[16]** **Adafruit BME280 Library** — Thư viện Arduino cho cảm biến BME280 (nhiệt độ, độ ẩm, áp suất), giao tiếp I2C/SPI. https://github.com/adafruit/Adafruit_BME280_Library
 - **[17]** **Hướng dẫn BME280 Arduino** — Bài viết hướng dẫn sử dụng BME280 với ESP32/Arduino. https://randomnerdtutorials.com/bme280-sensor-arduino-pressure-temperature-humidity/
-- **[18]** **SparkFun MAX3010x Sensor Library** — Thư viện Arduino cho cảm biến MAX30102 (nhịp tim, SpO2). https://github.com/sparkfun/SparkFun_MAX3010x_Sensor_Library
+
 
 ## 5. Các lưu ý về trích dẫn
 

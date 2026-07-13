@@ -12,7 +12,7 @@
 
 ## Nội dung công việc 1 — Phần cứng & LoRa
 
-1. Lắp ráp phần cứng IoT: chọn ESP32 (Development), mô đun LoRa SX1278, GPS, cảm biến BME280, MAX30102, các cảm biến khí (CO, CO2, NH3).
+1. Lắp ráp phần cứng IoT: chọn ESP32 (Development), mô đun LoRa SX1278, GPS, cảm biến BME280, các cảm biến khí (CO, CO2, NH3).
 2. Tìm hiểu LoRa, phương thức truyền tin.
 3. Thử nghiệm gửi và nhận tín hiệu LoRa giữa 2 thiết bị IoT (X và Y).
 4. Tìm hiểu cách phát Beacon — Thiết kế gói tin Beacon và ACK cho Xi và Y.

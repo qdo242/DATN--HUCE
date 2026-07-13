@@ -118,29 +118,24 @@ void loop() {
   float c2 = 420 + random(50);
   float co = 4.5 + random(30) / 10.0;
   float nh3 = 2.5 + random(20) / 10.0;
-  int   hr = random(2) ? 70 + random(15) : 0;
-  float spo2 = hr ? 96.0 + random(40)/10.0 : 0;
   lat += 0.00003; lon += 0.00003;
   int sats = 5 + random(4);
 
   snprintf(buf, sizeof(buf), "T:%.1fC H:%.0f%% P:%.0f", t, h, p);
-  char buf2[32];
-  snprintf(buf2, sizeof(buf2), "HR:%d SpO2:%.0f%%", hr, spo2);
   char buf3[32];
   snprintf(buf3, sizeof(buf3), "GPS:%.5fN %.5fE", lat, lon);
-  hien_thi("Xi_02: Doc cam bien", buf, buf2, buf3);
+  hien_thi("Xi_02: Doc cam bien", buf, buf3, "");
 
   Serial.printf("  T=%.1fC H=%.0f%% P=%.0f\n", t, h, p);
-  Serial.printf("  HR=%d SpO2=%.0f%% GPS=%.5fN %.5fE\n", hr, spo2, lat, lon);
+  Serial.printf("  GPS=%.5fN %.5fE\n", lat, lon);
   Serial.printf("  CO2=%.0f CO=%.1f NH3=%.1f\n", c2, co, nh3);
 
   snprintf(json_buf, sizeof(json_buf),
     "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f,\"p\":%.1f,"
-    "\"hr\":%d,\"spo2\":%.0f,"
     "\"co2\":%.0f,\"co\":%.1f,\"nh3\":%.1f,"
     "\"lat\":%.5f,\"lon\":%.5f,\"alt\":%.0f,\"sats\":%d,"
     "\"gw\":\"%s\",\"seq\":%u}",
-    XI_ID, t, h, p, hr, spo2, c2, co, nh3,
+    XI_ID, t, h, p, c2, co, nh3,
     lat, lon, 10.0, sats, Y_ID, seq++);
 
   uint8_t iv[16], ct[256];

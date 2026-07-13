@@ -3,7 +3,7 @@
  *  XI NODE - TTGO T-Beam (ESP32 + LoRa SX1276 + GPS + Sensors)
  * ============================================================
  *  Thiet bi: TTGO T-Beam (V07 / V08+ / V1.x)
- *  Cam bien: GY-BME280 (I2C 0x76), MAX30102 (I2C 0x57),
+ *  Cam bien: GY-BME280 (I2C 0x76),
  *            GPS NEO-M8N (UART2), OLED SSD1306 (I2C 0x3C)
  *
  *  Giao thuc:
@@ -16,8 +16,8 @@
  *    OLED:   VCC->3V3, GND->GND, SDA->GPIO21, SCL->GPIO22, addr 0x3C
  *    LoRa:   SCK=5, MISO=19, MOSI=27, CS=18, RST=23, DIO0=26
  *    GPS:    TX->GPIO12 (ESP32 RX2), RX->GPIO15 (ESP32 TX2)
- *    MAX30102: I2C 0x57, 3.3V (5V se gay hong)
  *
+
  *  Hardware revision notes:
  *    - V07 va truoc: GPS pins khac, khong co AXP202X
  *    - V08/V09/V10/V1.0+: co AXP202X (power management), can khoi tao
@@ -26,7 +26,6 @@
  *  Cai dat thu vien (Arduino IDE):
  *    - "Adafruit BME280 Library" (Adafruit) [16]
  *    - "Adafruit Unified Sensor"
- *    - "SparkFun MAX3010x ... Sensor Library" (SparkFun) [18]
  *    - "TinyGPSPlus"
  *    - "ESP8266 and ESP32 OLED driver for SSD1306 displays"
  *      hoac "U8g2"
@@ -42,8 +41,7 @@
 #include <mbedtls/aes.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include <MAX30105.h>
-#include <heartRate.h>
+
 #include <TinyGPSPlus.h>
 #include <SSD1306Wire.h>
 #include <LoRa.h>
@@ -64,9 +62,8 @@ const int   LORA_DIO = 26;
 const int   GPS_RX   = 12;          // T-BEAM: GPS TX -> ESP32 RX2
 const int   GPS_TX   = 15;          // T-BEAM: GPS RX <- ESP32 TX2
 
-// I2C: SSD1306 OLED 0x3C, BME280 0x76, MAX30102 0x57
+// I2C: SSD1306 OLED 0x3C, BME280 0x76
 Adafruit_BME280 bme;
-MAX30105 max30102;
 TinyGPSPlus gps;
 SSD1306Wire oled(0x3c, 21, 22);
 
@@ -98,7 +95,6 @@ static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
 // ============================================================
 struct SensorData {
   float t, h, p;
-  int   hr; float spo2;
   float lat, lon, alt;
   int   sats;
   float co2, co, nh3;
@@ -109,44 +105,6 @@ bool doc_bme280(SensorData& d) {
   d.h = bme.readHumidity();
   d.p = bme.readPressure() / 100.0F;
   return (!isnan(d.t) && !isnan(d.h));
-}
-
-bool doc_max30102(SensorData& d) {
-  const byte RATE_SIZE = 4;
-  byte rates[RATE_SIZE], rateSpot = 0;
-  long lastBeat = 0;
-  int bpm = 0; float spo2_val = 0;
-  unsigned long start = millis();
-  int samples = 0;
-  while (samples < 25 && (millis() - start) < 5000) {
-    long ir = max30102.getIR();
-    if (ir > 50000) {
-      if (checkForBeat(ir)) {
-        long delta = millis() - lastBeat;
-        lastBeat = millis();
-        if (delta > 200 && delta < 2000) {
-          bpm = 60000 / delta;
-          rates[rateSpot++] = bpm;
-          rateSpot %= RATE_SIZE;
-          int sum = 0;
-          for (byte i = 0; i < RATE_SIZE; i++) sum += rates[i];
-          bpm = sum / RATE_SIZE;
-        }
-      }
-      long red = max30102.getRed();
-      if (ir > 0 && red > 0) {
-        float ratio = (float)red / ir;
-        spo2_val = 104.0 - 17.0 * ratio;
-        if (spo2_val > 100) spo2_val = 100;
-        if (spo2_val < 70) spo2_val = 0;
-      }
-      samples++;
-    }
-    delay(20);
-  }
-  d.hr   = (bpm > 20 && bpm < 220) ? bpm : 0;
-  d.spo2 = (spo2_val > 0) ? spo2_val : 0;
-  return (d.hr > 0);
 }
 
 // GPS non-blocking: doc lien tuc, khong blocking loop
@@ -168,7 +126,6 @@ void doc_gps(SensorData& d) {
 
 void doc_sensors(SensorData& d) {
   doc_bme280(d);
-  doc_max30102(d);
   doc_gps(d);
   d.co2 = 400 + random(50);
   d.co  = 5.0 + random(30)/10.0;
@@ -249,11 +206,10 @@ bool protocol_xi(const SensorData& d) {
   // --- Buoc 3: Gui du lieu ma hoa ---
   snprintf(json_buf, sizeof(json_buf),
     "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f,\"p\":%.1f,"
-    "\"hr\":%d,\"spo2\":%.0f,"
     "\"co2\":%.0f,\"co\":%.1f,\"nh3\":%.1f,"
     "\"lat\":%.5f,\"lon\":%.5f,\"alt\":%.1f,\"sats\":%d,"
     "\"gw\":\"%s\",\"seq\":%u}",
-    XI_ID, d.t, d.h, d.p, d.hr, d.spo2,
+    XI_ID, d.t, d.h, d.p,
     d.co2, d.co, d.nh3,
     d.lat, d.lon, d.alt, d.sats,
     gw, seq++);
@@ -304,14 +260,6 @@ void setup() {
     Serial.println("[!] Loi BME280");
   else
     Serial.println("[+] BME280 OK");
-
-  // MAX30102 (I2C 0x57, 3.3V)
-  if (!max30102.begin(Wire, I2C_SPEED_STANDARD))
-    Serial.println("[!] Loi MAX30102");
-  else {
-    max30102.setup(0x1F, 4, 2, 400, 411, 16384);
-    Serial.println("[+] MAX30102 OK");
-  }
 
   // GPS UART2
   Serial2.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);

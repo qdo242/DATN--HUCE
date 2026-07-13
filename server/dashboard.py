@@ -28,13 +28,13 @@ with tabs[0]:
         col1.metric("Nhiet do (C)", f"{latest.get('temperature') or 0:.1f}")
         col2.metric("Do am (%)", f"{latest.get('humidity') or 0:.1f}")
         col3.metric("Ap suat (hPa)", f"{latest.get('pressure') or 0:.0f}")
-        col4.metric("Nhip tim (bpm)", f"{latest.get('heart_rate') or 0:.0f}")
-        col5.metric("SpO2 (%)", f"{latest.get('spo2') or 0:.0f}")
-        col6.metric("CO2 (ppm)", f"{latest.get('co2') or 0:.0f}")
-        col7.metric("CO/NH3", f"{latest.get('co') or 0:.1f}/{latest.get('nh3') or 0:.1f}")
+        col4.metric("CO2 (ppm)", f"{latest.get('co2') or 0:.0f}")
+        col5.metric("CO/NH3", f"{latest.get('co') or 0:.1f}/{latest.get('nh3') or 0:.1f}")
+        col6.metric("Vi do", f"{latest.get('latitude') or 0:.4f}")
+        col7.metric("Kinh do", f"{latest.get('longitude') or 0:.4f}")
 
         st.write("### Dien bien cac chi so moi truong")
-        avail = [c for c in ['temperature', 'humidity', 'pressure', 'heart_rate', 'spo2', 'co2', 'co', 'nh3'] if c in df_telemetry.columns]
+        avail = [c for c in ['temperature', 'humidity', 'pressure', 'co2', 'co', 'nh3'] if c in df_telemetry.columns]
         if avail:
             chart_data = df_telemetry.set_index('timestamp')[avail]
             st.line_chart(chart_data)
