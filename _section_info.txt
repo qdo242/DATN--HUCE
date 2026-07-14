@@ -1,0 +1,17 @@
+Section 2.4.3: paragraphs 107 to 117
+  [107] style=Heading 2: 2.4.3. Mã hóa đối xứng với AES, CBC
+  [108] style=Normal: AES xử lý khối 128 bit. AES-128 sử dụng khóa 128 bit, tương ứng 16 byte, và 10 vòng biến đổi. CBC không thay đổi thuật t
+  [109] style=Normal: (empty)
+  [110] style=Normal: Hình 2.11. Các phép biến đổi trong một vòng mã hóa AES
+  [111] style=Normal: (empty)
+  [112] style=Normal: Hình 2.12. Minh họa phép ShiftRows và MixColumns của AES
+  [113] style=Code Block: C1 = AES_K(P1 XOR IV)
+Ci = AES_K(Pi XOR C(i-1)), i > 1
+  [114] style=Normal: Bảng 2.2. Cấu trúc payload AES-128-CBC
+  [115] style=Normal: (empty)
+  [116] style=Normal: Mã nguồn hiện tại dùng zero padding: cấp buffer có chiều dài làm tròn lên bội số 16, điền 0x00 và chép JSON vào đầu. Ser
+  [117] style=Normal: CBC chỉ bảo vệ tính bí mật. Nó không tạo mã xác thực. Nếu ciphertext bị sửa, plaintext sau giải mã cũng bị thay đổi; lỗi
+  [118] style=Heading 2: 2.4.4. Giải mã
+  [119] style=Code Block: P1 = AES^-1_K(C1) XOR IV
+Pi = AES^-1_K(Ci) XOR C(i-1), i > 1
+  [120] style=Normal: (empty)

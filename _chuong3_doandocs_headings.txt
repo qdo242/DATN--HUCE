@@ -1,0 +1,22 @@
+  [0] Heading 1: CHƯƠNG 3. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+  [5] Heading 2: 3.1. Phân tích bài toán
+  [34] Heading 2: 3.2. Mục tiêu thiết kế hệ thống
+  [58] Heading 4: a. Yêu cầu chức năng của node Xi
+  [62] Heading 4: b. Yêu cầu chức năng của Gateway Y
+  [66] Heading 4: c. Yêu cầu chức năng của Flask Server
+  [70] Heading 4: d. Yêu cầu chức năng của Dashboard
+  [78] Heading 2: 3.3. Kiến trúc tổng thể của hệ thống
+  [83] Heading 4: a. Tầng thiết bị cảm biến
+  [86] Heading 4: b. Tầng Gateway
+  [88] Heading 4: c. Tầng Server
+  [90] Heading 4: d. Tầng lưu trữ
+  [92] Heading 4: e. Tầng hiển thị
+  [102] Heading 2: 3.4. Thiết kế node Xi
+  [150] Heading 2: 3.5. Thiết kế Gateway Y
+  [174] Heading 2: 3.6. Thiết kế quy trình mã hóa AES-128-CBC
+  [225] Heading 2: 3.7. Thiết kế Server và cơ chế chống tấn công phát lại
+  [272] Heading 2: Trường hợp hợp lệ
+  [281] Heading 2: Trường hợp replay
+  [289] Heading 2: Trường hợp sequence thấp hơn
+  [313] Heading 2: 3.8. Thiết kế cơ sở dữ liệu và Dashboard
+  [396] Heading 2: 3.9. Lưu đồ hoạt động toàn bộ hệ thống

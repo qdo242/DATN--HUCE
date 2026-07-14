@@ -1,0 +1,129 @@
+Tham khảo 2: Mã hóa 2
+Mục tiêu: mã hóa đơn giản nhất, nhanh nhất, dễ triển khai trên ESP32, chấp nhận oàn mạng dùng chung một khóa bí mật (Pre-Shared Key - PSK), thì có thể làm theo một trong các phương án sau:
+Tuy nhiên: Do mức độ cần bảo mật của mạng này không yêu cầu quá cao. Mặt khác trọng tâm của bài tốt nghiệp là truyền tin giữa các thiết bị IoT nên có thể chấp nhận phương án này.
+Giải pháp nhanh và đơn giản nhất: XOR Cipher
+Mã cực kỳ đơn giản, mã nguồn chỉ vài dòng và chạy nhanh nhất có thể mà không cần quan tâm đến các tiêu chuẩn bảo mật, thì mã hóa XOR là lựa chọn số một.
+Nguyên lý: Mỗi byte dữ liệu sẽ được "trộn" với một byte khóa thông qua phép toán XOR (^). Việc giải mã cũng chính là thực hiện lại phép XOR đó .
+Tốc độ: Cực kỳ nhanh, gần như không tốn tài nguyên CPU vì chỉ là phép toán bit cơ bản.
+Độ an toàn: Yếu. Nó chỉ là "giấu" dữ liệu (obfuscation), Không thực sự an toàn.
+Có thể chọn cách này cho đơn giản trong bài.. Do mức độ cần bảo mật của mạng này không yêu cầu quá cao. Mặt khác trọng tâm của bài tốt nghiệp là truyền tin giữa các thiết bị IoT nên cũng có thể chấp nhận phương án này.
+Code mẫu XOR Cipher trên ESP32 (Arduino Core)
+Cách đơn giản nhất là tạo một hàm nhận đầu vào là mảng byte và khóa (ví dụ khóa là 0xAA - 170).
+cpp
+// Hàm mã hóa và giải mã XOR (vì XOR có tính chất đối xứng)
+void xor_cipher(uint8_t *data, size_t length, uint8_t key) {
+for (size_t i = 0; i < length; i++) {
+data[i] ^= key; // Thực hiện XOR từng byte
+}
+}
+void setup() {
+Serial.begin(115200);
+// Dữ liệu cần gửi (ví dụ JSON)
+char payload[] = "{\"temp\":25.5}";
+uint8_t key = 0xAA; // Khóa chung cho toàn mạng, giá trị từ 1-255 [citation:2]
+Serial.print("Du lieu goc: ");
+Serial.println(payload);
+// Mã hóa payload
+xor_cipher((uint8_t*)payload, strlen(payload), key);
+Serial.print("Du lieu da ma hoa (Hex): ");
+for (size_t i = 0; i < strlen(payload); i++) {
+Serial.print(payload[i], HEX);
+Serial.print(" ");
+}
+Serial.println();
+// --- Gửi payload đã mã hóa qua MQTT/CoAP ở đây ---
+// Giải mã để kiểm tra (khi nhận được từ server)
+xor_cipher((uint8_t*)payload, strlen(payload), key);
+Serial.print("Du lieu giai ma: ");
+Serial.println(payload);
+}
+void loop() {}
+Lưu ý: Với cách này, toàn bộ mạng (ESP32 và Server) phải dùng chung một khóa key duy nhất.
+Giải pháp tối ưu hơn cho ứng dụng thực tế: AES với Hardware Accelerator
+Đây là giải pháp đơn giản thứ hai nhưng mang tính chuyên nghiệp và an toàn nhất. Điều làm cho nó trở nên dễ dàng trên ESP32 chính là phần cứng hỗ trợ AES .
+Tốc độ: Cực kỳ nhanh. Mặc dù code phức tạp hơn XOR, nhưng nhờ bộ tăng tốc phần cứng, việc mã hóa AES-128-CBC chỉ mất khoảng 17-18 micro giây cho một gói tin nhỏ .
+Bảo mật: Chuẩn công nghiệp, được chính phủ và ngân hàng sử dụng. An toàn tuyệt đối cho hầu hết các ứng dụng IoT.
+Độ đơn giản: Sẽ sử dụng thư viện Mbed TLS có sẵn trong ESP-IDF hoặc Arduino Core, việc này rất đơn giản .
+Hướng dẫn: Mã hóa AES-CBC với khóa tĩnh trên ESP32 (Arduino Core)
+Bước 1: Chuẩn bị Khóa (Key) và IV
+Key (Khóa bí mật): Một mảng 16 byte (cho AES-128). Đây là "mật khẩu" dùng chung cho toàn mạng. Tuyệt đối không được gửi khóa này qua mạng.
+IV (Initialization Vector): Một mảng 16 byte. IV không cần bí mật nhưng bắt buộc phải khác nhau cho mỗi lần mã hóa để đảm bảo an toàn . Bạn có thể random IV mỗi lần gửi và gửi nó cùng với bản mã.
+Bước 2: Code mẫu
+#include <mbedtls/aes.h> // Thư viện có sẵn
+#include <mbedtls/entropy.h>
+#include <ctime>
+// Khóa bí mật (16 byte cho AES-128) - DÙNG CHUNG TOÀN MẠNG
+// Cả ESP32 và Server đều phải có key này
+const uint8_t SECRET_KEY[16] = {0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C};
+// Hàm mã hóa dữ liệu với AES-128-CBC
+// Đầu vào: plaintext (mảng byte), length (độ dài)
+// Đầu ra: ciphertext (bản mã, cần được cấp phát bộ nhớ đủ lớn, tối thiểu = length + 16)
+//         IV (mảng 16 byte)
+size_t aes_encrypt(uint8_t* plaintext, size_t length, uint8_t* ciphertext, uint8_t* iv) {
+mbedtls_aes_context aes_ctx;
+mbedtls_aes_init(&aes_ctx);
+// 1. Thiết lập khóa (Set key)
+mbedtls_aes_setkey_enc(&aes_ctx, SECRET_KEY, 128); // 128 là số bit của khóa
+// 2. Tạo IV ngẫu nhiên (bắt buộc)
+// Trong thực tế, bạn nên dùng hàm random chất lượng tốt hơn
+for(int i = 0; i < 16; i++) {
+iv[i] = random(0, 255);
+}
+// 3. Mã hóa với chế độ CBC
+// Lưu ý: độ dài dữ liệu sẽ được làm tròn lên bội số của 16
+size_t encrypted_len = ((length + 15) / 16) * 16;
+mbedtls_aes_crypt_cbc(&aes_ctx, MBEDTLS_AES_ENCRYPT, length,
+iv, plaintext, ciphertext);
+mbedtls_aes_free(&aes_ctx);
+return encrypted_len; // Trả về độ dài thực của bản mã
+}
+void setup() {
+Serial.begin(115200);
+randomSeed(analogRead(0)); // Khởi tạo seed cho random
+// Dữ liệu cần gửi
+char payload[] = "{\"sensor\":\"dht11\",\"value\":75.5}";
+uint8_t ciphertext[128] = {0}; // Bộ đệm chứa dữ liệu đã mã hóa
+uint8_t iv[16] = {0};          // Bộ đệm chứa IV
+Serial.print("Payload goc: ");
+Serial.println(payload);
+// Mã hóa
+size_t encrypted_len = aes_encrypt((uint8_t*)payload, strlen(payload),
+ciphertext, iv);
+Serial.print("IV (hex): ");
+for(int i=0; i<16; i++) {
+Serial.print(iv[i], HEX);
+Serial.print(" ");
+}
+Serial.println();
+Serial.print("Ban ma (hex): ");
+for(int i=0; i<encrypted_len; i++) {
+Serial.print(ciphertext[i], HEX);
+Serial.print(" ");
+}
+Serial.println();
+// BƯỚC QUAN TRỌNG: Đóng gói để gửi đi
+// Giao thức đơn giản: [16 byte IV] + [encrypted_len byte Ciphertext]
+// Server sẽ tách ra: đọc 16 byte đầu làm IV, phần còn lại là bản mã để giải
+uint8_t packet_to_send[iv_len + encrypted_len];
+memcpy(packet_to_send, iv, 16);
+memcpy(packet_to_send + 16, ciphertext, encrypted_len);
+// --- Gửi packet_to_send qua MQTT hoặc CoAP ở đây ---
+}
+void loop() {}
+Đóng gói và gửi qua MQTT/CoAP
+Dù chọn XOR hay AES, dữ liệu sau khi mã hóa là các byte uint8_t, không thể gửi trực tiếp dưới dạng text vì có thể chứa ký tự đặc biệt.
+Có 2 cách phổ biến:
+Chuyển sang Hex String (đơn giản nhất): Mỗi byte (0-255) chuyển thành 2 ký tự hex (0-9, A-F). Ví dụ: byte 0xAB thành chuỗi "AB". Cách này dễ debug nhưng làm kích thước gói tin tăng gấp đôi.
+Chuyển sang Base64 (hiệu quả hơn): Mỗi 3 byte chuyển thành 4 ký tự, tăng ~33% kích thước. Gọn hơn Hex. Thư viện base64 có sẵn.
+Ví dụ gửi Base64 qua MQTT (khung code):
+cpp
+// Giả sử bạn đã có 'packet_to_send' và 'packet_len'
+#include <base64.h>
+String encoded = base64::encode((uint8_t*)packet_to_send, packet_len);
+client.publish("esp32/sensor", encoded.c_str());
+// Ở server (NodeJS/Python), bạn sẽ decode Base64, lấy 16 byte IV đầu,
+// và giải mã AES với SECRET_KEY.
+Tổng kết và lựa chọn
+Khả năng lựa chọn thứ 2: Dùng AES-CBC với khóa tĩnh. Dù code hơi dài hơn một chút, nhưng do tận dụng được sức mạnh phần cứng của ESP32, giải pháp này có tính an toàn và chuyên nghiệp hơn XOR Cipher.
+Mạng có cùng một khóa SECRET_KEY trên tất cả các ESP32 và trên Server.

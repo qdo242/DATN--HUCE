@@ -1,0 +1,129 @@
+2.4.3. Mã hóa đối xứng với AES, CBC
+AES xử lý khối 128 bit. AES-128 sử dụng khóa 128 bit, tương ứng 16 byte, và 10 vòng biến đổi. CBC không thay đổi thuật toán AES mà quy định cách liên kết các khối. Mỗi khối plaintext được XOR với ciphertext trước khi đưa vào AES.
+
+Hình 2.11. Các phép biến đổi trong một vòng mã hóa AES
+
+Hình 2.12. Minh họa phép ShiftRows và MixColumns của AES
+C1 = AES_K(P1 XOR IV)
+Ci = AES_K(Pi XOR C(i-1)), i > 1
+Bảng 2.2. Cấu trúc payload AES-128-CBC
+
+Mã nguồn hiện tại dùng zero padding: cấp buffer có chiều dài làm tròn lên bội số 16, điền 0x00 và chép JSON vào đầu. Server giải mã rồi loại byte 0x00 cuối. Cách này phù hợp với JSON kết thúc bằng '}', nhưng không tổng quát cho dữ liệu nhị phân. Không nên mô tả cơ chế hiện tại là PKCS#7.
+CBC chỉ bảo vệ tính bí mật. Nó không tạo mã xác thực. Nếu ciphertext bị sửa, plaintext sau giải mã cũng bị thay đổi; lỗi JSON có thể phát hiện một số trường hợp nhưng không phải kiểm tra toàn vẹn mật mã. Phiên bản triển khai thực tế cần HMAC hoặc chế độ mã hóa có xác thực.
+2.4.4. Giải mã
+P1 = AES^-1_K(C1) XOR IV
+Pi = AES^-1_K(Ci) XOR C(i-1), i > 1
+
+Hình 2.13. Quá trình mã hóa và giải mã trong chế độ CBC
+1. Chuyển payload hex thành mảng byte; từ chối nếu có ký tự không thuộc hệ hex.
+2. Kiểm tra raw payload có ít nhất 32 byte và phần ciphertext chia hết cho 16.
+3. Tách 16 byte đầu làm IV; phần còn lại làm ciphertext.
+4. Khởi tạo AES-CBC bằng cùng key 16 byte.
+5. Giải mã toàn bộ ciphertext.
+6. Loại zero padding ở cuối.
+7. Giải mã UTF-8 và parse JSON.
+8. Kiểm tra id, seq và kiểu dữ liệu trước khi ghi cơ sở dữ liệu.
+Gateway không tham gia các bước trên. Nếu Gateway giải mã rồi mã hóa lại, hệ thống phải cấp khóa cho Gateway, tạo thêm điểm lộ plaintext và phải quản lý IV/padding ở hai liên kết khác nhau.
+2.4.5. Yêu cầu bảo vệ chống tấn công
+Kẻ tấn công có thể thu một payload hợp lệ và gửi lại nguyên vẹn. Vì key, IV và ciphertext không thay đổi, Server vẫn giải mã được. Cần một trường thể hiện tính mới nằm trong plaintext được mã hóa. Đề tài sử dụng sequence number tăng dần theo từng node.
+Accept khi: seq_received > last_seq[device_id]
+Kiểm tra và cập nhật last_seq cần được thực hiện trong cùng transaction logic để tránh hai request đồng thời cùng vượt qua bước so sánh. Nếu node reset và sequence quay về giá trị thấp, Server sẽ từ chối. Giải pháp là lưu sequence trong NVS, kết hợp boot counter hoặc cơ chế đồng bộ lại có xác thực.
+2.5. Flask Framework
+Phần máy chủ có thể được xây dựng bằng nhiều nền tảng, chẳng hạn Django cho ứng dụng web có cấu trúc đầy đủ, FastAPI cho API bất đồng bộ có kiểm tra kiểu dữ liệu, hoặc Node.js khi toàn bộ dịch vụ được phát triển bằng JavaScript. Trong phạm vi đề tài, máy chủ chỉ cần một số endpoint để nhận POST JSON, gọi thư viện AES, kiểm tra sequence number, truy cập SQLite và trả mã trạng thái. Flask được lựa chọn vì cho phép triển khai toàn bộ chuỗi xử lý này bằng Python với cấu trúc gọn, đồng thời tương thích trực tiếp với PyCryptodome, sqlite3 và các mô-đun kiểm thử đã dùng trong dự án.
+Về cơ chế hoạt động, WSGI server tiếp nhận kết nối HTTP, chuyển request thành môi trường WSGI và gọi đối tượng ứng dụng Flask. Flask tạo application context và request context, đối chiếu URL cùng phương thức HTTP với route đã khai báo, rồi chuyển quyền xử lý cho view function. View function đọc JSON, kiểm tra payload, thực hiện giải mã và truy cập cơ sở dữ liệu trước khi tạo response; sau khi response được gửi, các context của request được giải phóng.
+API trả mã 200 khi payload được giải mã, sequence number hợp lệ và transaction lưu dữ liệu hoàn tất. Mã 400 được dùng cho lỗi định dạng như body không phải JSON, thiếu payload, chuỗi hex sai hoặc chiều dài ciphertext không hợp lệ. Gateway không nên retry nguyên payload khi nhận 400 vì lỗi nằm trong dữ liệu.
+Mã 403 biểu thị dữ liệu không được chấp nhận do sai khóa, giải mã không hợp lệ hoặc phát hiện replay. Mã 500 biểu thị lỗi nội bộ, ví dụ không mở được database hoặc exception ngoài dự kiến; trường hợp này có thể retry giới hạn. Mã phản hồi phải phản ánh trạng thái sau commit, tránh trả 200 trước khi dữ liệu thực sự được ghi.
+
+Threaded mode cho phép nhiều request chạy đồng thời, nhưng SQLite vẫn giới hạn writer. Các thao tác kiểm tra sequence và cập nhật last_seq cần đồng bộ. Không nên trả HTTP 200 trước khi phần dữ liệu quan trọng được commit nếu Gateway dựa vào status để xóa gói.
+2.6. Cơ sở dữ liệu SQLite
+Dữ liệu giám sát có thể được lưu bằng hệ quản trị quan hệ như MySQL hoặc PostgreSQL, cơ sở dữ liệu chuỗi thời gian như InfluxDB, hoặc cơ sở dữ liệu nhúng. MySQL và PostgreSQL phù hợp hệ thống nhiều người dùng và máy chủ tách biệt; cơ sở dữ liệu chuỗi thời gian thuận lợi khi cần truy vấn, tổng hợp khối lượng telemetry lớn. Tuy nhiên, mô hình của đề tài có số node nhỏ, chạy trên một máy và cần triển khai gọn để thử nghiệm. SQLite được chọn vì ứng dụng có thể mở trực tiếp một tệp database, không cần tiến trình DB Server riêng, đồng thời toàn bộ dữ liệu có thể sao lưu và di chuyển dưới dạng một tệp.
+SQLite lưu dữ liệu theo các page và tổ chức bảng, chỉ mục bằng B-tree. Mỗi thao tác ghi được đặt trong transaction: COMMIT làm thay đổi trở nên bền vững, còn ROLLBACK đưa cơ sở dữ liệu về trạng thái trước khi transaction bắt đầu. Khi bật chế độ WAL, các thay đổi được ghi trước vào tệp write-ahead log; tiến trình đọc vẫn có thể sử dụng snapshot cũ trong khi một tiến trình ghi bổ sung frame mới. Quá trình checkpoint sau đó chuyển các page hợp lệ từ WAL về tệp database chính.
+
+Hình 2.14. Kiến trúc các thành phần bên trong SQLite
+Mỗi thao tác Server nên sử dụng connection ngắn và đóng ngay sau commit hoặc rollback để giảm thời gian giữ khóa. Câu lệnh SQL phải dùng tham số hóa thay vì nối chuỗi. Các thay đổi liên quan đến một gói, đặc biệt kiểm tra last_seq, ghi telemetry và cập nhật last_seq, phải nằm trong cùng transaction logic để tránh trạng thái không nhất quán.
+Khi gặp database locked, ứng dụng chỉ retry số lần giới hạn với khoảng chờ ngắn. Index theo device_id và timestamp giúp tăng tốc truy vấn lịch sử. Connection không nên được chia sẻ tùy ý giữa các thread; mỗi worker cần connection riêng hoặc toàn bộ thao tác ghi được chuyển qua một hàng đợi duy nhất.
+
+Trên cơ sở cơ chế lưu trữ đó, dữ liệu của hệ thống được chia thành ba nhóm. Bảng devices lưu device_id và last_seq của từng node, đồng thời có thể lưu loại thiết bị, tọa độ mặc định và thời điểm cập nhật; đây là dữ liệu mà Server đọc khi kiểm tra tính mới của gói tin. Bảng telemetry lưu các giá trị môi trường và vị trí đã giải mã, còn bảng benchmark lưu thời gian xử lý và trạng thái của từng request.
+Trong bảng telemetry, mỗi bản ghi gồm device_id, timestamp, nhiệt độ, độ ẩm, áp suất, CO₂, CO, NH₃, tọa độ, mã Gateway, sequence number và trạng thái đo. Chỉ gói đã vượt qua kiểm tra định dạng, giải mã và chống replay mới được ghi vào đây. Ngược lại, benchmark hoặc một bảng security_event riêng được dùng để lưu thời gian giải mã, thời gian kiểm tra sequence, thời gian ghi dữ liệu và trạng thái lỗi; gói replay không được đưa vào telemetry như dữ liệu giám sát hợp lệ.
+
+Không lưu khóa AES dạng plaintext trong database ở phiên bản triển khai. Nếu cần key riêng từng node, Server nên dùng kho khóa hoặc mã hóa key at rest. Bảng telemetry không nên chứa bản ghi replay như dữ liệu hợp lệ; sự kiện replay được ghi vào benchmark hoặc bảng security_event riêng.
+2.7. Hiển thị trực quan kết quả giám sát
+Kết quả giám sát có thể được trình bày bằng nền tảng chuyên dụng như Grafana, ứng dụng web tự phát triển bằng React/Vue kết hợp một API, hoặc các framework trực quan hóa bằng Python. Grafana mạnh về chuỗi thời gian nhưng cần thêm dịch vụ và nguồn dữ liệu phù hợp; giao diện web tự phát triển cho khả năng tùy biến cao nhưng làm tăng khối lượng frontend. Với dữ liệu đã được xử lý trong Python và yêu cầu chính là biểu đồ, bảng cùng bản đồ, Streamlit được chọn để xây dựng Dashboard. Folium được dùng để tạo cấu hình bản đồ Leaflet từ Python, còn OpenStreetMap cung cấp dữ liệu và lớp nền bản đồ.
+Khi người dùng mở giao diện hoặc thay đổi một widget, Streamlit chạy lại script từ trên xuống dưới. Vì vậy, truy vấn SQLite và các bước biến đổi dữ liệu có thể được thực hiện nhiều lần nếu không có cơ chế kiểm soát. Những kết quả truy vấn ít thay đổi nên được cache trong khoảng thời gian ngắn, còn lựa chọn node, khoảng thời gian và trạng thái tương tác được lưu trong session state để duy trì ngữ cảnh của phiên.
+
+Hình 2.15. Phân biệt dữ liệu được cache và tài nguyên dùng chung trong Streamlit
+Các chỉ số tổng quan được lấy từ bản ghi mới nhất của từng node theo timestamp. Biểu đồ sử dụng chuỗi telemetry đã sắp xếp tăng dần theo thời gian, loại bỏ giá trị null và thống nhất đơn vị. Bảng chi tiết chỉ nên tải số hàng giới hạn hoặc phân trang để tránh làm chậm giao diện.
+Bản đồ chỉ tạo marker khi vĩ độ, kinh độ và cờ GPS hợp lệ. Phần benchmark sử dụng các trường decrypt_ms, sequence_ms và total_ms để tính trung bình, cực đại và tỷ lệ lỗi. Dashboard không giải mã dữ liệu; nó chỉ đọc những bản ghi đã được Server xác nhận và lưu vào database.
+
+Leaflet tải các tile theo mức zoom và vùng nhìn. Marker được đặt bằng tọa độ WGS84. Nếu có nhiều điểm, cần giới hạn số marker hoặc cluster. Khi dùng tile OpenStreetMap công cộng, phải ghi nguồn và tuân thủ chính sách sử dụng; hệ thống lớn nên dùng nhà cung cấp tile phù hợp.
+2.8. Wokwi
+Trong giai đoạn phát triển ban đầu, việc mua đầy đủ board ESP32, mô-đun LoRa, GPS và nhiều loại cảm biến có thể vượt quá kinh phí, trong khi sơ đồ chân, lựa chọn thư viện và cấu trúc firmware vẫn chưa ổn định. Nếu lắp phần cứng ngay từ đầu, lỗi chương trình dễ bị lẫn với lỗi đấu nối hoặc lỗi linh kiện, làm tăng thời gian thử nghiệm và nguy cơ hỏng thiết bị. Vì vậy, một công cụ giả lập giúp kiểm tra trước khả năng biên dịch, luồng trạng thái, giao tiếp ngoại vi và kết nối máy chủ sẽ giảm số lần thay đổi phần cứng. Wokwi được lựa chọn để thực hiện bước kiểm chứng này trước khi chuyển firmware sang board thật.
+Một dự án Wokwi được tổ chức gần với dự án ESP32 thực tế. Tệp sketch.ino chứa firmware Arduino; diagram.json mô tả board, linh kiện và các kết nối chân; wokwi.toml xác định đường dẫn firmware hoặc tệp ELF cùng cấu hình chạy trong Visual Studio Code; thư viện được khai báo trong libraries.txt hoặc cấu hình của dự án web. Khi bắt đầu mô phỏng, Wokwi nạp chương trình vào ESP32 ảo và tái hiện các ngoại vi được hỗ trợ theo sơ đồ đã khai báo.
+Trong quá trình chạy, trạng thái GPIO, UART, I²C, màn hình và Serial Monitor có thể được quan sát để kiểm tra trình tự khởi tạo, timeout và xử lý lỗi. ESP32 ảo có thể kết nối mạng Wokwi-GUEST để gửi HTTP tới một endpoint truy cập được từ Internet. Nếu Flask Server chỉ chạy trong mạng nội bộ, cần tạo tunnel hoặc sử dụng Private Gateway để thiết lập đường truyền tới máy chủ.
+
+Hình 2.16. Giao diện mô phỏng mạch ESP32 trên Wokwi
+
+Cơ chế mạng này cho phép kiểm tra chuỗi ESP32 tạo JSON, mã hóa AES, gửi HTTP và nhận phản hồi của Flask Server mà chưa cần phần cứng hoàn chỉnh. Tuy nhiên, Public Gateway không truy cập trực tiếp dịch vụ trong LAN và không nên được dùng để truyền khóa thật hoặc dữ liệu nhạy cảm; các giá trị thử nghiệm phải là dữ liệu mô phỏng.
+Nhờ mô phỏng, nhóm phát triển có thể xác nhận firmware biên dịch, state machine chuyển trạng thái đúng, JSON và sequence number được tạo đúng, kết quả AES trên ESP32 tương thích với thư viện Python và HTTP request nhận được phản hồi từ Server. Serial Monitor và màn hình mô phỏng hỗ trợ kiểm tra các nhánh timeout, mất kết nối và lỗi định dạng trước khi nạp chương trình lên thiết bị thật.
+Kết quả này chỉ xác nhận logic và khả năng tương tác của phần mềm. Wokwi không thể thay thế phép thử thực địa về khoảng cách LoRa, RSSI, SNR, tỷ lệ mất gói, ảnh hưởng anten, dòng tiêu thụ pin, nhiệt độ linh kiện hoặc độ chính xác cảm biến. Sau khi firmware ổn định trên mô phỏng, các chỉ tiêu trên vẫn phải được đo bằng phần cứng thật trong điều kiện môi trường cụ thể.
+
+2.9. Kết chương
+Chương 2 đã xác định các cơ sở kỹ thuật dùng trực tiếp cho hệ thống. Chuỗi đo phải quản lý hiệu chuẩn, đơn vị và trạng thái lỗi; GNSS phải kiểm tra fix và tuổi dữ liệu; LoRa phải đồng nhất SF, BW, CR và cấu trúc khung; Wi-Fi/4G-5G đảm nhiệm kết nối IP từ Gateway.
+ESP32 cung cấp I²C, SPI, UART, ADC và Wi-Fi để tích hợp cảm biến, GPS và radio. Dữ liệu JSON được mã hóa AES-128-CBC bằng key và IV 16 byte, chuyển sang hex và chuyển tiếp qua Gateway mà không giải mã. Server Flask tách payload, giải mã, kiểm tra sequence number và ghi SQLite. Streamlit và Leaflet đọc dữ liệu đã xác nhận để hiển thị. Wokwi chỉ xác nhận logic, không thay thế kiểm thử phần cứng.
+
+Nguồn tài liệu và nguồn của các hình minh họa được tổng hợp tại cuối chương.
+TÀI LIỆU THAM KHẢO CHƯƠNG 2
+1. Overview of the Internet of Things, Recommendation Y.4000/Y.2060. https://www.itu.int/rec/t-rec-y.2060-201206-i
+2. Guide to Instruments and Methods of Observation. https://community.wmo.int/en/activity-areas/imop/wmo-no_8
+3. Bosch Sensortec, BME280 Data Sheet. https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+4. Sensirion, SCD4x Data Sheet. https://sensirion.com/media/documents/48C4B7FB/67FE0194/CD_DS_SCD4x_Datasheet_D1.pdf
+5. Winsen, MQ-7B Semiconductor Sensor for Carbon Monoxide Manual. https://www.winsen-sensor.com/d/files/manual/mq-7b.pdf
+6. Winsen, ZE03 Electrochemical Detection Module Manual. https://www.winsen-sensor.com/d/files/manual/ze03.pdf
+7. u-blox, NEO-M8 Concurrent GNSS Modules Data Sheet. https://content.u-blox.com/sites/default/files/NEO-M8-FW3_DataSheet_UBX-15031086.pdf
+8. u-blox, Receiver Description and Protocol Specification. https://www.u-blox.com/docs/UBX-13003221
+9. IEEE Standards Association, Evolution of Wi-Fi Technology and Standards. https://standards.ieee.org/beyond-standards/the-evolution-of-wi-fi-technology-and-standards/
+10. Espressif Systems, ESP32 Series Data Sheet. https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+11. Espressif Systems, ESP-IDF Wi-Fi Programming Guide. https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/network/esp_wifi.html
+12. Semtech, SX1276/77/78/79 Data Sheet and Product Documentation. https://www.semtech.com/products/wireless-rf/lora-connect/sx1276
+13. Semtech, LoRa Calculator. https://www.semtech.com/design-support/lora-calculator
+14. 3GPP, 5G System Overview. https://www.3gpp.org/technologies/5g-system-overview
+15. FIPS 197, Advanced Encryption Standard. https://csrc.nist.gov/pubs/fips/197/final
+16. SP 800-38A, Block Cipher Modes of Operation. https://csrc.nist.gov/pubs/sp/800/38/a/final
+17. Replay Attack Definition. https://csrc.nist.gov/glossary/term/replay_attack
+18. RFC 4303, IP Encapsulating Security Payload - Anti-Replay. https://www.rfc-editor.org/rfc/rfc4303
+19. PyCryptodome AES Documentation. https://pycryptodome.readthedocs.io/en/latest/src/cipher/aes.html
+20. Flask Documentation - Application Structure and Lifecycle. https://flask.palletsprojects.com/en/stable/lifecycle/
+21. SQLite Documentation - Architecture of SQLite. https://www.sqlite.org/arch.html
+22. SQLite Documentation - Write-Ahead Logging. https://www.sqlite.org/wal.html
+23. Python sqlite3 Documentation. https://docs.python.org/3/library/sqlite3.html
+24. Streamlit Documentation - Architecture and Execution Model. https://docs.streamlit.io/develop/concepts/architecture
+25. Streamlit Documentation - Caching. https://docs.streamlit.io/develop/concepts/architecture/caching
+26. Leaflet Documentation. https://leafletjs.com/reference.html
+27. OpenStreetMap. https://www.openstreetmap.org/
+28. OpenStreetMap Tile Usage Policy. https://operations.osmfoundation.org/policies/tiles/
+29. Folium Documentation. https://python-visualization.github.io/folium/
+30. Wokwi Documentation - ESP32 Simulation. https://docs.wokwi.com/guides/esp32
+31. Wokwi Documentation - ESP32 Wi-Fi Networking. https://docs.wokwi.com/guides/esp32-wifi
+32. Wokwi Documentation - diagram.json File Format. https://docs.wokwi.com/diagram-format
+33. Wokwi Documentation - Project Configuration. https://docs.wokwi.com/vscode/project-config
+34. Wokwi Documentation - Migrating Wokwi projects to VS Code. https://docs.wokwi.com/vscode/migrating
+35. Mã nguồn và tài liệu nội bộ đề tài DATN--DoAnhQuan: firmware Node Xi, Gateway Y, Flask Server, SQLite và Streamlit Dashboard.
+36. S. V. Akram và cộng sự, “Performance Analysis of IoT and Long-Range Radio-Based Sensor Node and Gateway Architecture for Solid Waste Management,” Sensors, vol. 21, no. 8, 2021. https://doi.org/10.3390/s21082774
+37. 3GPP, “Carrier Aggregation on Mobile Networks.” https://www.3gpp.org/technologies/carrier-aggregation-on-mobile-networks
+NGUỒN HÌNH MINH HỌA
+Hình 2.1 - Mô hình tham chiếu của mạng IoT: xem tài liệu tham khảo [1].
+Hình 2.2 - Kiến trúc truyền dữ liệu từ các node cảm biến qua Gateway tới máy chủ: xem tài liệu tham khảo [36].
+Hình 2.3 - Sơ đồ khối chức năng của cảm biến BME280: xem tài liệu tham khảo [3].
+Hình 2.4 - Dòng cảm biến SCD4x và sơ đồ khối chức năng: xem tài liệu tham khảo [4].
+Hình 2.5 - Mạch đo cơ bản của cảm biến MQ-7B: xem tài liệu tham khảo [5].
+Hình 2.6 - Thông số truyền và cấu trúc khung dữ liệu UART của mô-đun ZE03: xem tài liệu tham khảo [6].
+Hình 2.7 - Sơ đồ khối mô-đun GNSS NEO-M8: xem tài liệu tham khảo [7].
+Hình 2.8 - Mô hình lập trình Wi-Fi trên ESP32: xem tài liệu tham khảo [11].
+Hình 2.9 - Sơ đồ khối bộ thu phát LoRa SX1276/77/78/79: xem tài liệu tham khảo [12].
+Hình 2.10 - Sơ đồ khối chức năng của ESP32: xem tài liệu tham khảo [10].
+Hình 2.11 - Các phép biến đổi trong một vòng mã hóa AES: xem tài liệu tham khảo [15].
+Hình 2.12 - Minh họa phép ShiftRows và MixColumns của AES: xem tài liệu tham khảo [15].
+Hình 2.13 - Quá trình mã hóa và giải mã trong chế độ CBC: xem tài liệu tham khảo [16].
+Hình 2.14 - Kiến trúc các thành phần bên trong SQLite: xem tài liệu tham khảo [21].
+Hình 2.15 - Phân biệt dữ liệu được cache và tài nguyên dùng chung trong Streamlit: xem tài liệu tham khảo [25].
+Hình 2.16 - Giao diện mô phỏng mạch ESP32 trên Wokwi: xem tài liệu tham khảo [34].

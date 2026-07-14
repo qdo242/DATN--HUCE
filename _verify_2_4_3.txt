@@ -1,0 +1,50 @@
+2.4.3. Mã hóa đối xứng với AES, CBC
+Vấn đề khi áp dụng cho IoT mô-đun. Hệ thống IoT gồm các node cảm biến (Xi) với vi điều khiển ESP32 có 320 KB RAM, 4 MB Flash, CPU Xtensa 240 MHz. Khi chọn thuật toán mã hóa, cần đảm bảo đơn giản nhất, nhanh nhất, dễ triển khai trên ESP32 và chấp nhận toàn mạng dùng chung một khóa bí mật (Pre-Shared Key – PSK). Kích thước khóa 16 byte (128 bit) được chọn vì AES định nghĩa khóa 128 bit, IV trong chế độ CBC bằng đúng kích thước khối AES (16 byte), đủ nhỏ lưu trong RAM ESP32 và đủ lớn để chống tấn công vét cạn (2^128 tổ hợp). Thư viện mbedtls hỗ trợ sẵn AES-128 trên ESP-IDF và Arduino Core.
+Thuật toán AES. AES (Advanced Encryption Standard) là thuật toán mã hóa khối đối xứng do NIST công bố năm 2001. AES-128 xử lý khối 128 bit, sử dụng khóa 128 bit, thực hiện 10 vòng biến đổi trên ma trận 4×4 byte. Mỗi vòng gồm 4 phép biến đổi: SubBytes (thay thế từng byte bằng giá trị S-box), ShiftRows (dịch vòng các hàng), MixColumns (nhân ma trận trên mỗi cột) và AddRoundKey (XOR với khóa vòng). Vòng cuối cùng bỏ qua MixColumns. CBC mode không thay đổi thuật toán AES mà quy định cách liên kết các khối: mỗi khối plaintext được XOR với ciphertext khối trước (hoặc IV cho khối đầu) trước khi mã hóa, đảm bảo hai gói tin giống nhau mã hóa ra ciphertext khác nhau nếu IV khác nhau.
+
+Hình 2.11. Các phép biến đổi trong một vòng mã hóa AES
+
+Hình 2.12. Minh họa phép ShiftRows và MixColumns của AES
+C1 = AES_K(P1 XOR IV)
+Ci = AES_K(Pi XOR C(i-1)), i > 1
+Bảng 2.2. Cấu trúc payload AES-128-CBC
+
+Triển khai AES-CBC trên ESP32. Nhờ hardware accelerator tích hợp sẵn trên ESP32, AES-CBC chỉ mất khoảng 17-18 micro giây cho một gói tin nhỏ, nhanh hơn rất nhiều so với triển khai phần mềm. Quy trình mã hóa: JSON payload → AES-128-CBC Encrypt → Ciphertext → chuyển sang hex → gửi qua LoRa/WiFi. Mỗi lần gửi sinh IV ngẫu nhiên 16 byte. Zero padding: làm tròn độ dài lên bội số 16, điền 0x00. Đây là cách phù hợp với JSON kết thúc bằng }, không nên mô tả là PKCS#7 vì cơ chế khác nhau. Đóng gói [16 byte IV + ciphertext] rồi chuyển sang hex string trước khi gửi.
+static size_t aes_encrypt(uint8_t* pt, size_t len, uint8_t* ct, uint8_t* iv) {
+  mbedtls_aes_context ctx;
+  mbedtls_aes_init(&ctx);
+  mbedtls_aes_setkey_enc(&ctx, NETWORK_KEY, 128);
+  uint8_t iv_copy[16];
+  for (int i = 0; i < 16; i++) iv_copy[i] = random(256);
+  size_t pl = ((len + 15) / 16) * 16;
+  uint8_t pad[256];
+  memset(pad, 0, pl);
+  memcpy(pad, pt, len);
+  memcpy(iv, iv_copy, 16);
+  mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, pl, iv, pad, ct);
+  memcpy(iv, iv_copy, 16);
+  mbedtls_aes_free(&ctx);
+  return pl;
+}
+Giải mã phía đầu cuối. Quá trình giải mã thực hiện tại Server Flask: chuyển payload hex thành mảng byte, kiểm tra độ dài tối thiểu 32 byte, tách 16 byte đầu làm IV và phần còn lại làm ciphertext, khởi tạo AES-CBC bằng cùng key, giải mã toàn bộ ciphertext, loại zero padding, giải mã UTF-8 và parse JSON, kiểm tra id và seq trước khi ghi cơ sở dữ liệu.
+
+Gateway không tham gia các bước trên. Gateway Y chỉ chuyển tiếp khung hex qua HTTP, không có khóa AES, không giải mã. Nếu Gateway giải mã rồi mã hóa lại, hệ thống phải cấp khóa cho Gateway — tạo thêm điểm lộ plaintext và phải quản lý IV/padding ở hai liên kết khác nhau. Đề tài chọn thiết kế end-to-end encryption: mã hóa tại node Xi, giải mã duy nhất tại Server cuối.
+
+CBC chỉ bảo vệ tính bí mật, không tạo mã xác thực. Nếu ciphertext bị sửa, plaintext giải mã cũng bị thay đổi; lỗi JSON có thể phát hiện một số trường hợp nhưng không phải kiểm tra toàn vẹn mật mã. Phiên bản triển khai thực tế cần HMAC hoặc chế độ mã hóa có xác thực (AES-GCM).
+
+Tổng kết: Trong số các phương án mã hóa (XOR Cipher, AES-128-CBC, HMAC-SHA256), AES-128-CBC với khóa tĩnh dùng chung toàn mạng là lựa chọn phù hợp nhất: tận dụng hardware accelerator ESP32, đảm bảo an toàn, tính chuyên nghiệp, và mã nguồn vẫn đơn giản đủ để triển khai.
+2.4.4. Giải mã
+P1 = AES^-1_K(C1) XOR IV
+Pi = AES^-1_K(Ci) XOR C(i-1), i > 1
+
+Hình 2.13. Quá trình mã hóa và giải mã trong chế độ CBC
+1. Chuyển payload hex thành mảng byte; từ chối nếu có ký tự không thuộc hệ hex.
+2. Kiểm tra raw payload có ít nhất 32 byte và phần ciphertext chia hết cho 16.
+3. Tách 16 byte đầu làm IV; phần còn lại làm ciphertext.
+4. Khởi tạo AES-CBC bằng cùng key 16 byte.
+5. Giải mã toàn bộ ciphertext.
+6. Loại zero padding ở cuối.
+7. Giải mã UTF-8 và parse JSON.
+8. Kiểm tra id, seq và kiểu dữ liệu trước khi ghi cơ sở dữ liệu.
+Gateway không tham gia các bước trên. Nếu Gateway giải mã rồi mã hóa lại, hệ thống phải cấp khóa cho Gateway, tạo thêm điểm lộ plaintext và phải quản lý IV/padding ở hai liên kết khác nhau.
+2.4.5. Yêu cầu bảo vệ chống tấn công

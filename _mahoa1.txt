@@ -1,0 +1,124 @@
+Tham khảo 1: Mã hóa
+Mục tiêu: mã hóa đơn giản nhất, nhanh nhất, dễ triển khai trên ESP32, chấp nhận oàn mạng dùng chung một khóa bí mật (Pre-Shared Key - PSK), thì có thể làm theo một trong các phương án sau:
+Phương án 1: XOR với khóa (đơn giản nhất)
+Ví dụ khóa:
+const char* KEY = "ABC123";
+Payload trước khi gửi:
+{
+  "id":"001",
+  "temp":30,
+  "hum":70
+}
+Thực hiện XOR từng byte:
+void xorEncrypt(uint8_t *data, int len, const char *key)
+{
+    int keyLen = strlen(key);
+
+    for(int i = 0; i < len; i++)
+    {
+        data[i] ^= key[i % keyLen];
+    }
+}
+Bên nhận:
+xorEncrypt(data, len, KEY);
+vì:
+(X XOR K) XOR K = X
+Ưu điểm
+Code cực ngắn.
+Chạy rất nhanh.
+Tốn rất ít RAM.
+Phù hợp demo, học tập.
+Nhược điểm
+Bảo mật rất yếu.
+Bị phá dễ dàng nếu bắt được nhiều gói tin.
+Có thể chọn cách này cho đơn giản trong bài..
+Phương án 2: AES-128 với khóa chung (Có thể thử nghiệm)
+Khóa chung:
+uint8_t aesKey[16] =
+{
+  0x11,0x22,0x33,0x44,
+  0x55,0x66,0x77,0x88,
+  0x99,0xAA,0xBB,0xCC,
+  0xDD,0xEE,0xFF,0x00
+};
+Payload:
+{
+  "id":"001",
+  "lat":"21.0285",
+  "lon":"105.8542",
+  "temp":30,
+  "hum":70
+}
+Quy trình:
+JSON
+ ↓
+AES-128 Encrypt
+ ↓
+Ciphertext
+ ↓
+LoRa/WiFi
+ ↓
+AES-128 Decrypt
+ ↓
+JSON
+Ưu điểm
+ESP32 xử lý rất nhanh.
+Thư viện có sẵn.
+Khó đọc nội dung nếu không có khóa.
+Nhược điểm
+Nếu 1 node bị lộ khóa:
+Node A bị hack
+    ↓
+Khóa chung bị lộ
+    ↓
+Toàn mạng bị lộ
+Tuy nhiên: Do mức độ cần bảo mật của mạng này không yêu cầu quá cao. Mặt khác trọng tâm của bài tốt nghiệp là truyền tin giữa các thiết bị IoT nên có thể chấp nhận phương án này.
+Phương án 3: HMAC-SHA256 với khóa chung (nhanh và thực dụng)
+Nếu mục tiêu chính là:
+Biết gói tin có phải từ node hợp lệ hay không.
+Chống sửa đổi dữ liệu.
+thì không cần mã hóa.
+Gửi:
+{
+  "id":"001",
+  "temp":30,
+  "hum":70,
+  "ts":1748761234
+}
+Tạo:
+HMAC_SHA256(payload, secret_key)
+Gửi thêm:
+{
+  "data": "...",
+  "hmac":"5A8F..."
+}
+Server kiểm tra lại HMAC.
+Ưu điểm
+Nhanh hơn AES.
+ESP32 xử lý rất nhẹ.
+Phát hiện giả mạo tốt.
+Nhược điểm
+Payload vẫn đọc được.
+Tuy nhiên: Do mức độ cần bảo mật của mạng này không yêu cầu quá cao. Mặt khác trọng tâm của bài tốt nghiệp là truyền tin giữa các thiết bị IoT nên có thể chấp nhận phương án này.
+Khuyến nghị cho mạng T-Beam LoRa sinh viên/nghiên cứu
+Ví dụ gói tin:
+struct SensorPacket
+{
+    char id[4];
+    float lat;
+    float lon;
+    float temp;
+    float hum;
+    uint32_t timestamp;
+};
+Toàn mạng dùng chung:
+const char* NETWORK_KEY =
+    "TBEAM2026";
+Sau khi đóng gói struct:
+xorEncrypt(
+    (uint8_t*)&packet,
+    sizeof(packet),
+    NETWORK_KEY
+);
+rồi gửi qua LoRa.
+Đối với mô hình thử nghiệm 2–10 node T-Beam trong phòng lab hoặc đề tài nghiên cứu đại học, cách này là đơn giản nhất để minh họa cơ chế "payload được mã hóa bằng khóa chung". Nếu triển khai ngoài thực tế thì có thể chuyển sang AES-128 hoặc AES-GCM sau.

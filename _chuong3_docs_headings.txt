@@ -1,0 +1,84 @@
+  [0] Heading 1: CHƯƠNG 3. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+  [1] Heading 2: 3.1. Giới thiệu chương
+  [5] Heading 2: 3.2. Phân tích bài toán
+  [34] Heading 2: 3.3. Mục tiêu thiết kế hệ thống
+  [37] Heading 3: 3.3.1. Thiết kế kiến trúc tổng thể
+  [39] Heading 3: 3.3.2. Thiết kế giao tiếp giữa node Xi và Gateway Y
+  [41] Heading 3: 3.3.3. Thiết kế cấu trúc dữ liệu cảm biến
+  [43] Heading 3: 3.3.4. Thiết kế cơ chế mã hóa
+  [45] Heading 3: 3.3.5. Thiết kế payload truyền dữ liệu
+  [47] Heading 3: 3.3.6. Thiết kế Server xử lý dữ liệu
+  [49] Heading 3: 3.3.7. Thiết kế cơ chế chống replay
+  [51] Heading 3: 3.3.8. Thiết kế cơ sở dữ liệu
+  [53] Heading 3: 3.3.9. Thiết kế Dashboard
+  [55] Heading 2: 3.4. Phân tích yêu cầu hệ thống
+  [56] Heading 3: 3.4.1. Yêu cầu chức năng
+  [58] Heading 4: a. Yêu cầu chức năng của node Xi
+  [62] Heading 4: b. Yêu cầu chức năng của Gateway Y
+  [66] Heading 4: c. Yêu cầu chức năng của Flask Server
+  [70] Heading 4: d. Yêu cầu chức năng của Dashboard
+  [74] Heading 3: 3.4.2. Yêu cầu phi chức năng
+  [78] Heading 2: 3.5. Kiến trúc tổng thể của hệ thống
+  [79] Heading 3: 3.5.1. Mô hình kiến trúc
+  [82] Heading 3: 3.5.2. Vai trò của từng tầng
+  [83] Heading 4: a. Tầng thiết bị cảm biến
+  [86] Heading 4: b. Tầng Gateway
+  [88] Heading 4: c. Tầng Server
+  [90] Heading 4: d. Tầng lưu trữ
+  [92] Heading 4: e. Tầng hiển thị
+  [94] Heading 3: 3.5.3. Đặc điểm của kiến trúc
+  [102] Heading 2: 3.6. Thiết kế node Xi
+  [103] Heading 3: 3.6.1. Vai trò của node Xi
+  [106] Heading 3: 3.6.2. Thành phần logic của node Xi
+  [109] Heading 3: 3.6.3. Dữ liệu đầu vào của node Xi
+  [118] Heading 3: 3.6.4. Dữ liệu đầu ra của node Xi
+  [127] Heading 3: 3.6.5. Luồng hoạt động chi tiết của node Xi
+  [130] Heading 3: 3.6.6. Thiết kế Beacon
+  [139] Heading 3: 3.6.7. Thiết kế dữ liệu cảm biến
+  [145] Heading 3: 3.6.8. Thiết kế sequence number tại node Xi
+  [150] Heading 2: 3.7. Thiết kế Gateway Y
+  [151] Heading 3: 3.7.1. Vai trò của Gateway Y
+  [154] Heading 3: 3.7.2. Thành phần logic của Gateway Y
+  [157] Heading 3: 3.7.3. Thiết kế ACK
+  [166] Heading 3: 3.7.4. Luồng hoạt động chi tiết của Gateway Y
+  [168] Heading 3: 3.7.5. Dữ liệu Gateway gửi đến Server
+  [174] Heading 2: 3.8. Thiết kế quy trình mã hóa AES-128-CBC
+  [175] Heading 3: 3.8.1. Lý do sử dụng AES-128-CBC
+  [184] Heading 3: 3.8.2. Dữ liệu đầu vào của quá trình mã hóa
+  [189] Heading 3: 3.8.3. Khóa AES
+  [195] Heading 3: 3.8.4. Padding dữ liệu
+  [203] Heading 3: 3.8.5. IV trong AES-CBC
+  [212] Heading 3: 3.8.6. Cấu trúc payload sau mã hóa
+  [221] Heading 3: 3.8.7. Lưu đồ mã hóa tại node Xi
+  [223] Heading 3: 3.8.8. Quy trình giải mã tương ứng tại Server
+  [225] Heading 2: 3.9. Thiết kế Flask Server
+  [226] Heading 3: 3.9.1. Vai trò của Server
+  [240] Heading 3: 3.9.2. API nhận dữ liệu
+  [249] Heading 3: 3.9.3. Luồng xử lý chi tiết tại Server
+  [251] Heading 3: 3.9.4. Các lỗi Server cần xử lý
+  [253] Heading 2: 3.10. Thiết kế cơ chế chống tấn công phát lại
+  [254] Heading 3: 3.10.1. Tấn công phát lại trong hệ thống IoT
+  [259] Heading 3: 3.10.2. Nguyên tắc sử dụng sequence number
+  [268] Heading 3: 3.10.3. Thuật toán kiểm tra sequence number
+  [271] Heading 3: 3.10.4. Ví dụ kiểm tra sequence
+  [272] Heading 2: Trường hợp hợp lệ
+  [281] Heading 2: Trường hợp replay
+  [289] Heading 2: Trường hợp sequence thấp hơn
+  [297] Heading 3: 3.10.5. Ưu điểm của sequence number
+  [305] Heading 3: 3.10.6. Hạn chế của sequence number
+  [313] Heading 2: 3.11. Thiết kế cơ sở dữ liệu
+  [314] Heading 3: 3.11.1. Mục tiêu thiết kế database
+  [324] Heading 3: 3.11.2. Bảng devices
+  [330] Heading 3: 3.11.3. Bảng telemetry
+  [335] Heading 3: 3.11.4. Bảng benchmark
+  [340] Heading 3: 3.11.5. Quan hệ giữa các bảng
+  [344] Heading 2: 3.12. Thiết kế Dashboard
+  [345] Heading 3: 3.12.1. Mục tiêu của Dashboard
+  [354] Heading 3: 3.12.2. Trang tổng quan
+  [365] Heading 3: 3.12.3. Trang dữ liệu cảm biến
+  [376] Heading 3: 3.12.4. Trang bản đồ
+  [386] Heading 3: 3.12.5. Trang benchmark
+  [396] Heading 2: 3.13. Thiết kế luồng xử lý toàn hệ thống
+  [397] Heading 3: 3.13.1. Luồng dữ liệu hợp lệ
+  [400] Heading 3: 3.13.2. Luồng xử lý replay
+  [403] Heading 3: 3.13.3. Luồng xử lý lỗi giải mã
