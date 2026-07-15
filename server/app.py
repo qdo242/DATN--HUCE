@@ -154,6 +154,7 @@ def receive_data():
             executor.submit(log_telemetry, data, f"Canh bao: {msg}")
             executor.submit(save_benchmark, data.get('id'), t_decrypt, t_seq, 0, 0, "FAIL")
             print(f"[!] {msg}")
+            logging.warning(f"REPLAY: device={data.get('id')} seq={data.get('seq')} -> {msg}")
             return jsonify({"status": "error", "reason": msg}), 403
 
         t3 = time.time()
